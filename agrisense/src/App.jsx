@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
-import FarmerDashboard from "./pages/dashboard"
+import AgriSenseDashboard from "./pages/AgriSenseDashboard";
 import FarmerAuthPage from "./pages/FarmerAuthPage";
 
 function App() {
@@ -9,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<FarmerAuthPage />} />
-        <Route path="/dashboard" element={<FarmerDashboard />} />
+        <Route path="/dashboard" element={<AgriSenseDashboard/>} />
       </Routes>
     </BrowserRouter>
   );
