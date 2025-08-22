@@ -1,4 +1,3 @@
-// AgriSenseDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -10,7 +9,7 @@ import {
   Sprout, CloudRain, Thermometer, Droplets, TestTube,
   TrendingUp, Calendar, MapPin, Settings, Bell, User, Home,
   BarChart3, Leaf, Sun, Menu, X, Plus, Edit, Save, AlertTriangle, Loader,
-  RefreshCw, LogOut, Map
+  RefreshCw, LogOut, Map, Navigation, CheckCircle
 } from 'lucide-react';
 
 // Error Boundary Component
@@ -44,7 +43,8 @@ const AgriSenseDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [manualLocation, setManualLocation] = useState({ city: '', state: '' });
-  
+  const [locationInfo, setLocationInfo] = useState(null);
+
   // State for dynamic data
   const [farmerData, setFarmerData] = useState(null);
   const [dashboardData, setDashboardData] = useState({
@@ -61,13 +61,43 @@ const AgriSenseDashboard = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error('Geolocation is not supported by your browser'));
+        return;
       }
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 15000,
+        maximumAge: 60000 // 1 minute cache
       });
     });
+  };
+
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding service unavailable');
+      }
+      
+      const data = await response.json();
+      const address = data.address;
+      
+      const locationData = {
+        latitude,
+        longitude,
+        city: address.city || address.town || address.village || address.suburb || 'Unknown City',
+        state: address.state || 'Unknown State',
+        district: address.city || address.town || address.village || address.suburb || 'Unknown District',
+        country: address.country || 'Unknown Country',
+        fullAddress: data.display_name
+      };
+      
+      return locationData;
+    } catch (error) {
+      throw new Error(`Geocoding failed: ${error.message}`);
+    }
   };
 
   const showNotification = (message, type = 'info') => {
@@ -75,35 +105,53 @@ const AgriSenseDashboard = () => {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const fetchDashboardData = async (useLocation = true) => {
+  const fetchDashboardData = async (useLocation = false) => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
+      const farmerId = localStorage.getItem('farmerId');
       if (!token) {
         throw new Error('No authentication token found. Please log in again.');
       }
 
-      let url = 'http://localhost:5000/farmer/dashboard';
-      let position = null;
+      let url = `http://localhost:5000/farmer/dashboard?farmerId=${farmerId}`;
+      let lat = localStorage.getItem('lat');
+      let lon = localStorage.getItem('lon');
+
       if (useLocation) {
         try {
-          position = await getCurrentPosition();
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          url += `?lat=${lat}&lon=${lon}`;
+          const position = await getCurrentPosition();
+          lat = position.coords.latitude;
+          lon = position.coords.longitude;
+          localStorage.setItem('lat', lat);
+          localStorage.setItem('lon', lon);
+          
+          // Get location details
+          const locationData = await reverseGeocode(lat, lon);
+          setLocationInfo(locationData);
+          localStorage.setItem('locationInfo', JSON.stringify(locationData));
+          
+          url += `&lat=${lat}&lon=${lon}`;
+          showNotification(`Location updated: ${locationData.city}, ${locationData.state}`, 'success');
         } catch (geoError) {
           console.error('Geolocation error:', geoError);
           let errorMessage = 'Unable to fetch location';
           if (geoError.code === 1) {
             errorMessage = 'Location access denied. Please allow location access in your browser settings.';
           } else if (geoError.code === 2) {
-            // This is the improved, more specific message for the user
-            errorMessage = 'Location unavailable. Please ensure your device\'s GPS is enabled and you have a stable connection.';
+            errorMessage = 'Location unavailable. Please ensure GPS is enabled.';
           } else if (geoError.code === 3) {
             errorMessage = 'Location request timed out. Please try refreshing.';
           }
           showNotification(errorMessage, 'warning');
+        }
+      } else if (lat && lon) {
+        url += `&lat=${lat}&lon=${lon}`;
+        // Load cached location info
+        const cachedLocationInfo = localStorage.getItem('locationInfo');
+        if (cachedLocationInfo) {
+          setLocationInfo(JSON.parse(cachedLocationInfo));
         }
       }
 
@@ -116,6 +164,7 @@ const AgriSenseDashboard = () => {
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem('token');
+          localStorage.removeItem('farmerId');
           navigate('/login');
           throw new Error('Session expired. Please log in again.');
         }
@@ -132,18 +181,9 @@ const AgriSenseDashboard = () => {
         weatherData: data.weatherData,
         yieldComparison: data.yieldComparison,
       });
-      if (position) {
-        showNotification('Location updated successfully', 'success');
-      }
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err.message);
-      if (err.message.includes('Session expired')) {
-        return;
-      }
-      if (useLocation && err.message !== 'Failed to fetch dashboard data') {
-        await fetchDashboardData(false);
-      }
     } finally {
       setLoading(false);
     }
@@ -167,6 +207,21 @@ const AgriSenseDashboard = () => {
       if (!token) {
         throw new Error('No authentication token found');
       }
+
+      // Update the location info state
+      const newLocationInfo = {
+        city: manualLocation.city,
+        state: manualLocation.state,
+        district: manualLocation.city,
+        country: 'India',
+        fullAddress: `${manualLocation.city}, ${manualLocation.state}, India`,
+        latitude: null,
+        longitude: null
+      };
+
+      setLocationInfo(newLocationInfo);
+      localStorage.setItem('locationInfo', JSON.stringify(newLocationInfo));
+
       const response = await fetch('http://localhost:5000/farmer/update', {
         method: 'PUT',
         headers: {
@@ -176,22 +231,26 @@ const AgriSenseDashboard = () => {
         body: JSON.stringify({
           ...farmerData,
           currentCity: manualLocation.city,
+          district: manualLocation.city,
           state: manualLocation.state
         })
       });
+
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem('token');
+          localStorage.removeItem('farmerId');
           navigate('/login');
           throw new Error('Session expired. Please log in again.');
         }
         throw new Error('Failed to update location');
       }
+
       const updatedData = await response.json();
       setFarmerData(updatedData.farmer);
-      showNotification('Location updated successfully', 'success');
+      showNotification(`Location updated to: ${manualLocation.city}, ${manualLocation.state}`, 'success');
       setManualLocation({ city: '', state: '' });
-      await fetchDashboardData(false); // Refresh data with new location
+      await fetchDashboardData(false);
     } catch (err) {
       setError(err.message);
       showNotification(err.message, 'error');
@@ -216,6 +275,7 @@ const AgriSenseDashboard = () => {
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem('token');
+          localStorage.removeItem('farmerId');
           navigate('/login');
           throw new Error('Session expired. Please log in again.');
         }
@@ -232,12 +292,16 @@ const AgriSenseDashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('farmerId');
+    localStorage.removeItem('lat');
+    localStorage.removeItem('lon');
+    localStorage.removeItem('locationInfo');
     navigate('/login');
     showNotification('Logged out successfully', 'success');
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false); // use stored location if available
   }, []);
 
   const menuItems = [
@@ -263,9 +327,29 @@ const AgriSenseDashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-red-50">
         <AlertTriangle className="w-12 h-12 text-red-500" />
         <p className="ml-4 text-lg font-semibold text-red-700">Error: {error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+        >
+          Retry
+        </button>
       </div>
     );
   }
+
+  // Get display location
+  const getDisplayLocation = () => {
+    if (locationInfo) {
+      return `${locationInfo.city}, ${locationInfo.state}`;
+    }
+    if (farmerData?.currentCity && farmerData?.state) {
+      return `${farmerData.currentCity}, ${farmerData.state}`;
+    }
+    if (farmerData?.district && farmerData?.state) {
+      return `${farmerData.district}, ${farmerData.state}`;
+    }
+    return 'Unknown Location';
+  };
 
   // Derived data for charts once farmerData is available
   const soilNutrients = farmerData ? [
@@ -311,8 +395,14 @@ const AgriSenseDashboard = () => {
               Welcome back, {farmerData?.farmerName || 'User'}! 🌾
             </h1>
             <p className="text-gray-600 text-lg">
-              Your farm in {farmerData?.district || 'Unknown'}, {farmerData?.state || 'Unknown'} is performing well.
+              Your farm in {getDisplayLocation()} is performing well.
             </p>
+            {locationInfo && (
+              <div className="mt-2 flex items-center text-sm text-gray-500">
+                <Navigation className="w-4 h-4 mr-1" />
+                <span>GPS: {locationInfo.latitude?.toFixed(4)}, {locationInfo.longitude?.toFixed(4)}</span>
+              </div>
+            )}
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-500">Current Season</p>
@@ -644,6 +734,58 @@ const AgriSenseDashboard = () => {
         </div>
       </div>
 
+      {/* Current Location Display */}
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
+        <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Current Location</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center">
+              <MapPin className="w-5 h-5 text-blue-600 mr-2" />
+              <span className="font-medium text-gray-700">Location:</span>
+              <span className="ml-2 text-gray-600">{getDisplayLocation()}</span>
+            </div>
+            {locationInfo && (
+              <>
+                <div className="flex items-center">
+                  <Navigation className="w-5 h-5 text-green-600 mr-2" />
+                  <span className="font-medium text-gray-700">GPS Coordinates:</span>
+                  <span className="ml-2 text-gray-600 text-sm">
+                    {locationInfo.latitude?.toFixed(6)}, {locationInfo.longitude?.toFixed(6)}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                  <span className="font-medium text-gray-700">Full Address:</span>
+                </div>
+                <p className="text-sm text-gray-600 ml-7 bg-gray-50 p-2 rounded">
+                  {locationInfo.fullAddress}
+                </p>
+              </>
+            )}
+          </div>
+          <div className="flex items-center justify-center">
+            <button
+              onClick={handleRefreshLocation}
+              disabled={isRefreshing}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Location
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Manual Location Input */}
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
         <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Manual Location Input</h3>
         <p className="text-gray-600 mb-4">Enter your location manually if automatic detection fails.</p>
@@ -715,7 +857,7 @@ const AgriSenseDashboard = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex" style={{ backgroundColor: '#F0F4FA' }}>
         {notification && (
-          <div className={`fixed top-4 right-4 p-4 rounded-xl shadow-lg text-white ${
+          <div className={`fixed top-4 right-4 p-4 rounded-xl shadow-lg text-white z-50 ${
             notification.type === 'success' ? 'bg-green-500' :
             notification.type === 'error' ? 'bg-red-500' : 'bg-yellow-500'
           }`}>
@@ -723,6 +865,7 @@ const AgriSenseDashboard = () => {
             {notification.message}
           </div>
         )}
+        
         <aside className={`bg-white/30 backdrop-blur-md border-r border-white/40 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
           <div className="p-4 flex items-center justify-between">
             <div className={`flex items-center ${!sidebarOpen && 'justify-center w-full'}`}>
@@ -756,11 +899,12 @@ const AgriSenseDashboard = () => {
             <div className="flex items-center space-x-6">
               <div className="flex items-center text-gray-700">
                 <MapPin className="w-5 h-5 mr-2" />
-                <span className="font-medium mr-2">{farmerData?.currentCity || 'Unknown Location'}</span>
+                <span className="font-medium mr-2">{getDisplayLocation()}</span>
                 <button 
                   onClick={handleRefreshLocation} 
                   disabled={isRefreshing}
-                  className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                  className="p-1 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  title="Refresh location"
                 >
                   <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </button>

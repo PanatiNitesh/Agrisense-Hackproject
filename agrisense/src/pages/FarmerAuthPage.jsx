@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import { 
   Sprout, 
   Mail, 
@@ -19,7 +19,9 @@ import {
   CloudRain,
   Tractor,
   Map,
-  Building
+  Building,
+  Navigation,
+  X
 } from 'lucide-react';
 
 const indianStates = [
@@ -38,7 +40,13 @@ const FarmerAuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(''); // For user feedback
+  const [statusMessage, setStatusMessage] = useState('');
+  
+  // Location-related states
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   
   const [formData, setFormData] = useState({
     farmerName: '',
@@ -62,11 +70,136 @@ const FarmerAuthPage = () => {
   });
 
   const [errors, setErrors] = useState({});
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Location functions
+  const requestLocationAccess = () => {
+    setShowLocationModal(true);
+  };
+
+  const handleLocationAccept = () => {
+    setShowLocationModal(false);
+    getCurrentLocation();
+  };
+
+  const handleLocationDecline = () => {
+    setShowLocationModal(false);
+    setLocationError('');
+  };
+
+  const getCurrentLocation = () => {
+    setIsGettingLocation(true);
+    setLocationError('');
+
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by this browser');
+      setIsGettingLocation(false);
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Use reverse geocoding to get location details
+          await reverseGeocode(latitude, longitude);
+        } catch (error) {
+          console.error('Reverse geocoding error:', error);
+          setLocationError('Failed to get location details');
+        }
+        
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Location access denied by user');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Location information is unavailable');
+            break;
+          case error.TIMEOUT:
+            setLocationError('Location request timed out');
+            break;
+          default:
+            setLocationError('An unknown error occurred');
+            break;
+        }
+      },
+      options
+    );
+  };
+
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      // Using OpenStreetMap Nominatim API for reverse geocoding (free)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding service unavailable');
+      }
+      
+      const data = await response.json();
+      
+      // Extract state and district/city from the response
+      const address = data.address;
+      let detectedState = '';
+      let detectedDistrict = '';
+      
+      // Try to match the detected state with Indian states
+      if (address.state) {
+        const matchedState = indianStates.find(state => 
+          state.toLowerCase().includes(address.state.toLowerCase()) ||
+          address.state.toLowerCase().includes(state.toLowerCase())
+        );
+        detectedState = matchedState || address.state;
+      }
+      
+      // Get district or city
+      detectedDistrict = address.city || address.town || address.village || address.suburb || address.county || '';
+      
+      const locationData = {
+        latitude,
+        longitude,
+        state: detectedState,
+        district: detectedDistrict,
+        fullAddress: data.display_name
+      };
+      
+      setCurrentLocation(locationData);
+      
+      // Auto-fill the form
+      setFormData(prev => ({
+        ...prev,
+        state: detectedState,
+        district: detectedDistrict
+      }));
+      
+      // Clear any existing errors for these fields
+      setErrors(prev => ({
+        ...prev,
+        state: '',
+        district: ''
+      }));
+      
+    } catch (error) {
+      throw new Error(`Geocoding failed: ${error.message}`);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -103,7 +236,6 @@ const FarmerAuthPage = () => {
       }
       if (!formData.state) newErrors.state = 'State is required';
       if (!formData.district.trim()) newErrors.district = 'District/City is required';
-
     } else {
       if (!formData.email.trim()) newErrors.email = 'Email is required';
       if (!formData.password) newErrors.password = 'Password is required';
@@ -163,13 +295,11 @@ const FarmerAuthPage = () => {
         throw new Error(data.message || 'An error occurred.');
       }
       
-      // Store token and farmerId
       localStorage.setItem('token', data.token);
       localStorage.setItem('farmerId', data.farmerId);
 
       setStatusMessage(isLogin ? 'Sign in successful! Redirecting...' : 'Account created! Redirecting...');
       
-      // Redirect to dashboard after a short delay
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
@@ -179,7 +309,6 @@ const FarmerAuthPage = () => {
       setErrors({ submit: error.message || 'Network error. Please try again.' });
       setStatusMessage('');
     } finally {
-      // Delay setting isLoading to false to allow redirection message to be seen
       if (!localStorage.getItem('token')) {
         setIsLoading(false);
       }
@@ -196,6 +325,8 @@ const FarmerAuthPage = () => {
     });
     setErrors({});
     setStatusMessage('');
+    setCurrentLocation(null);
+    setLocationError('');
   };
 
   const OptionalInput = ({ name, type = 'text', placeholder, icon }) => (
@@ -220,9 +351,42 @@ const FarmerAuthPage = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"></div>
       </div>
 
+      {/* Location Permission Modal */}
+      {showLocationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="backdrop-blur-md bg-white/90 rounded-3xl p-6 max-w-sm w-full border border-white/30 shadow-2xl">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="bg-gradient-to-r from-blue-500 to-green-500 p-3 rounded-2xl">
+                  <Navigation className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Location Access</h2>
+              <p className="text-gray-600 mb-6">
+                Allow AgriSense to access your location to automatically fill in your state and district information?
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleLocationDecline}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 transition-colors duration-300"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleLocationAccept}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+                >
+                  Allow
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button 
         onClick={() => window.history.back()}
-        className={`fixed top-6 left-6 z-50 backdrop-blur-md bg-white/30 text-gray-700 p-3 rounded-2xl border border-white/40 hover:bg-white/40 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}`}
+        className={`fixed top-6 left-6 z-40 backdrop-blur-md bg-white/30 text-gray-700 p-3 rounded-2xl border border-white/40 hover:bg-white/40 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-10 opacity-0'}`}
       >
         <ArrowLeft className="w-5 h-5" />
       </button>
@@ -313,35 +477,77 @@ const FarmerAuthPage = () => {
             
             {!isLogin && (
               <>
-                <div>
-                  <div className="relative">
-                    <Map className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <select
-                      name="state"
-                      value={formData.state}
-                      onChange={handleInputChange}
-                      className={`w-full pl-12 pr-4 py-4 backdrop-blur-md bg-white/50 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/60 transition-all duration-300 appearance-none ${errors.state ? 'border-red-400' : 'border-white/40'} ${formData.state ? 'text-gray-800' : 'text-gray-400'}`}
+                {/* Location Detection Section */}
+                <div className="p-4 backdrop-blur-md bg-blue-50/50 rounded-2xl border border-blue-200/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">Location Information</h3>
+                    <button
+                      type="button"
+                      onClick={requestLocationAccess}
+                      disabled={isGettingLocation}
+                      className="flex items-center space-x-1 text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors duration-300 disabled:opacity-50"
                     >
-                      <option value="" disabled>Select your State</option>
-                      {indianStates.map(state => <option key={state} value={state}>{state}</option>)}
-                    </select>
+                      {isGettingLocation ? (
+                        <><Loader className="w-3 h-3 animate-spin" /><span>Detecting...</span></>
+                      ) : (
+                        <><Navigation className="w-3 h-3" /><span>Auto-detect</span></>
+                      )}
+                    </button>
                   </div>
-                  {errors.state && <p className="text-red-500 text-sm mt-1 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{errors.state}</p>}
-                </div>
 
-                <div>
-                  <div className="relative">
-                    <Building className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="district"
-                      value={formData.district}
-                      onChange={handleInputChange}
-                      placeholder="District / City"
-                      className={`w-full pl-12 pr-4 py-4 backdrop-blur-md bg-white/50 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/60 transition-all duration-300 ${errors.district ? 'border-red-400' : 'border-white/40'}`}
-                    />
+                  {/* Current Location Display */}
+                  {currentLocation && (
+                    <div className="mb-3 p-2 bg-green-50/50 rounded-lg border border-green-200/50">
+                      <div className="flex items-center mb-1">
+                        <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                        <span className="text-xs font-medium text-green-700">Location Detected</span>
+                      </div>
+                      <p className="text-xs text-gray-600 truncate">{currentLocation.fullAddress}</p>
+                    </div>
+                  )}
+
+                  {/* Location Error Display */}
+                  {locationError && (
+                    <div className="mb-3 p-2 bg-red-50/50 rounded-lg border border-red-200/50">
+                      <div className="flex items-center">
+                        <AlertCircle className="w-4 h-4 text-red-600 mr-2" />
+                        <span className="text-xs text-red-700">{locationError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="relative">
+                        <Map className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <select
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          className={`w-full pl-12 pr-4 py-4 backdrop-blur-md bg-white/50 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/60 transition-all duration-300 appearance-none ${errors.state ? 'border-red-400' : 'border-white/40'} ${formData.state ? 'text-gray-800' : 'text-gray-400'}`}
+                        >
+                          <option value="" disabled>Select your State</option>
+                          {indianStates.map(state => <option key={state} value={state}>{state}</option>)}
+                        </select>
+                      </div>
+                      {errors.state && <p className="text-red-500 text-sm mt-1 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{errors.state}</p>}
+                    </div>
+
+                    <div>
+                      <div className="relative">
+                        <Building className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="text"
+                          name="district"
+                          value={formData.district}
+                          onChange={handleInputChange}
+                          placeholder="District / City"
+                          className={`w-full pl-12 pr-4 py-4 backdrop-blur-md bg-white/50 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/60 transition-all duration-300 ${errors.district ? 'border-red-400' : 'border-white/40'}`}
+                        />
+                      </div>
+                      {errors.district && <p className="text-red-500 text-sm mt-1 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{errors.district}</p>}
+                    </div>
                   </div>
-                  {errors.district && <p className="text-red-500 text-sm mt-1 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{errors.district}</p>}
                 </div>
               </>
             )}
