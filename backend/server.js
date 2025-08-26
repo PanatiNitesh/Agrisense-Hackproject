@@ -109,6 +109,40 @@ const deviceSchema = new mongoose.Schema({
 
 const Device = mongoose.model('Device', deviceSchema);
 
+// FIXED: Farmer Assets Schema with proper defaults and optional fields
+const farmerAssetsSchema = new mongoose.Schema({
+  farmerId: { type: String, required: true, unique: true },
+  sensors: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    isActive: { type: Boolean, default: true },
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    lastUpdated: { type: Date, default: Date.now }
+  }],
+  cameras: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    isActive: { type: Boolean, default: true },
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    lastUpdated: { type: Date, default: Date.now }
+  }],
+  drones: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    isActive: { type: Boolean, default: true },
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    lastUpdated: { type: Date, default: Date.now }
+  }]
+}, { 
+  timestamps: true,
+  collection: 'farmerAssets' // Explicitly set collection name
+});
+
+const FarmerAssets = mongoose.model('FarmerAssets', farmerAssetsSchema);
+
 // Farmer schema (updated with soil data fields)
 const farmerSchema = new mongoose.Schema({
   farmerId: { type: String, required: true, unique: true },
@@ -217,6 +251,30 @@ const fetchSoilData = async (lat, lon) => {
   }
 };
 
+// Helper function to sanitize and validate asset data
+const sanitizeAssetData = (assets) => {
+  const currentDate = new Date().toLocaleDateString();
+  
+  const sanitizeArray = (assetArray) => {
+    if (!Array.isArray(assetArray)) return [];
+    
+    return assetArray.map(asset => ({
+      id: asset.id || Date.now().toString(),
+      name: asset.name || 'Unnamed Asset',
+      model: asset.model || 'Unknown Model',
+      isActive: asset.isActive !== undefined ? asset.isActive : true,
+      addedDate: asset.addedDate || currentDate,
+      lastUpdated: new Date()
+    }));
+  };
+
+  return {
+    sensors: sanitizeArray(assets.sensors),
+    cameras: sanitizeArray(assets.cameras),
+    drones: sanitizeArray(assets.drones)
+  };
+};
+
 // SIGNUP
 app.post('/farmer/signup', async (req, res) => {
   try {
@@ -243,6 +301,15 @@ app.post('/farmer/signup', async (req, res) => {
     });
 
     await farmer.save();
+
+    // Initialize empty farmer assets
+    const farmerAssets = new FarmerAssets({
+      farmerId,
+      sensors: [],
+      cameras: [],
+      drones: []
+    });
+    await farmerAssets.save();
 
     const token = jwt.sign(
       { farmerId: farmer.farmerId, email: farmer.email, role: farmer.role },
@@ -311,6 +378,169 @@ app.post('/farmer/login', async (req, res) => {
     res.status(200).json({ message: "Login successful", token, farmerId: farmer.farmerId });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// FIXED: Farmer Assets Endpoints with proper error handling
+
+// Get farmer assets
+app.get('/farmer/assets/:farmerId', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    
+    // Check if the requesting farmer owns these assets or is admin
+    if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    let assets = await FarmerAssets.findOne({ farmerId });
+    
+    // If no assets found, create empty assets document
+    if (!assets) {
+      assets = new FarmerAssets({
+        farmerId,
+        sensors: [],
+        cameras: [],
+        drones: []
+      });
+      await assets.save();
+    }
+
+    res.status(200).json({
+      sensors: assets.sensors || [],
+      cameras: assets.cameras || [],
+      drones: assets.drones || []
+    });
+  } catch (err) {
+    console.error('Get assets error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// FIXED: Save farmer assets with proper data sanitization
+app.post('/farmer/assets', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const { farmerId, ...assetData } = req.body;
+    
+    // Check if the requesting farmer owns these assets or is admin
+    if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Sanitize and validate the asset data
+    const sanitizedAssets = sanitizeAssetData(assetData);
+
+    // Update or create farmer assets
+    let assets = await FarmerAssets.findOneAndUpdate(
+      { farmerId },
+      {
+        $set: {
+          ...sanitizedAssets,
+          updatedAt: new Date()
+        }
+      },
+      { 
+        new: true, 
+        upsert: true, // Create if doesn't exist
+        runValidators: true 
+      }
+    );
+
+    res.status(200).json({ 
+      message: "Assets saved successfully", 
+      assets: {
+        sensors: assets.sensors,
+        cameras: assets.cameras,
+        drones: assets.drones
+      }
+    });
+  } catch (err) {
+    console.error('Save assets error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get assets statistics for a farmer
+app.get('/farmer/assets/:farmerId/stats', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    
+    // Check if the requesting farmer owns these assets or is admin
+    if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const assets = await FarmerAssets.findOne({ farmerId });
+    
+    if (!assets) {
+      return res.status(200).json({
+        totalAssets: 0,
+        activeAssets: 0,
+        inactiveAssets: 0,
+        sensors: { total: 0, active: 0, inactive: 0 },
+        cameras: { total: 0, active: 0, inactive: 0 },
+        drones: { total: 0, active: 0, inactive: 0 }
+      });
+    }
+
+    const sensorStats = {
+      total: assets.sensors.length,
+      active: assets.sensors.filter(s => s.isActive).length,
+      inactive: assets.sensors.filter(s => !s.isActive).length
+    };
+
+    const cameraStats = {
+      total: assets.cameras.length,
+      active: assets.cameras.filter(c => c.isActive).length,
+      inactive: assets.cameras.filter(c => !c.isActive).length
+    };
+
+    const droneStats = {
+      total: assets.drones.length,
+      active: assets.drones.filter(d => d.isActive).length,
+      inactive: assets.drones.filter(d => !d.isActive).length
+    };
+
+    const totalAssets = sensorStats.total + cameraStats.total + droneStats.total;
+    const activeAssets = sensorStats.active + cameraStats.active + droneStats.active;
+    const inactiveAssets = sensorStats.inactive + cameraStats.inactive + droneStats.inactive;
+
+    res.status(200).json({
+      totalAssets,
+      activeAssets,
+      inactiveAssets,
+      sensors: sensorStats,
+      cameras: cameraStats,
+      drones: droneStats
+    });
+  } catch (err) {
+    console.error('Get assets stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: Get all farmer assets
+app.get('/admin/assets', authMiddleware(["admin"]), async (req, res) => {
+  try {
+    const allAssets = await FarmerAssets.find({}).populate('farmerId', 'farmerName email');
+    
+    const summary = {
+      totalFarmersWithAssets: allAssets.length,
+      totalSensors: allAssets.reduce((sum, asset) => sum + asset.sensors.length, 0),
+      totalCameras: allAssets.reduce((sum, asset) => sum + asset.cameras.length, 0),
+      totalDrones: allAssets.reduce((sum, asset) => sum + asset.drones.length, 0),
+      activeSensors: allAssets.reduce((sum, asset) => sum + asset.sensors.filter(s => s.isActive).length, 0),
+      activeCameras: allAssets.reduce((sum, asset) => sum + asset.cameras.filter(c => c.isActive).length, 0),
+      activeDrones: allAssets.reduce((sum, asset) => sum + asset.drones.filter(d => d.isActive).length, 0)
+    };
+
+    res.status(200).json({
+      assets: allAssets,
+      summary
+    });
+  } catch (err) {
+    console.error('Admin get all assets error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -452,7 +682,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
       }
     }
 
-    // Get device statistics
+    // Get device statistics (legacy devices)
     const deviceStats = await Device.aggregate([
       { $match: { farmerId: farmer.farmerId } },
       {
@@ -556,7 +786,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
   }
 });
 
-// DEVICE MANAGEMENT ENDPOINTS
+// DEVICE MANAGEMENT ENDPOINTS (Legacy - keeping for backward compatibility)
 
 // Get all devices for a farmer
 app.get('/farmer/devices', authMiddleware(["farmer", "admin"]), async (req, res) => {
@@ -833,8 +1063,6 @@ app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 // Start server
 const PORT = process.env.PORT || 5000;

@@ -10,7 +10,7 @@ import {
   Sprout, CloudRain, Thermometer, Droplets, TestTube,
   TrendingUp, Calendar, MapPin, Settings, Bell, User, Home,
   BarChart3, Leaf, Sun, Menu, X, Plus, Edit, Save, AlertTriangle, Loader,
-  RefreshCw, LogOut, Map, Navigation, CheckCircle
+  RefreshCw, LogOut, Map, Navigation, CheckCircle, Trash2, Power, PowerOff
 } from 'lucide-react';
 
 // Error Boundary Component
@@ -46,6 +46,13 @@ const AgriSenseDashboard = () => {
   const [manualLocation, setManualLocation] = useState({ city: '', state: '' });
   const [locationInfo, setLocationInfo] = useState(null);
 
+  // Updated Asset management state with detailed devices
+  const [assets, setAssets] = useState({
+    sensors: [],
+    cameras: [],
+    drones: []
+  });
+
   // State for dynamic data
   const [farmerData, setFarmerData] = useState(null);
   const [dashboardData, setDashboardData] = useState({
@@ -57,6 +64,46 @@ const AgriSenseDashboard = () => {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+
+  // Predefined device names for realistic options
+  const deviceTemplates = {
+    sensors: [
+      'Soil Moisture Sensor SM-100',
+      'pH Meter Pro-pH7',
+      'Temperature Sensor TempMax-200',
+      'NPK Nutrient Analyzer NA-300',
+      'Weather Station WS-2000',
+      'Light Intensity Sensor LIS-150',
+      'Humidity Monitor HM-250',
+      'CO2 Level Detector CLD-400',
+      'Water Flow Sensor WFS-100',
+      'Conductivity Meter CM-500'
+    ],
+    cameras: [
+      'Field Monitor Cam FM-4K',
+      'Security Camera SC-Pro',
+      'Thermal Imaging Cam TIC-300',
+      'Night Vision Camera NVC-200',
+      'Pan-Tilt Camera PTC-360',
+      'Weather Resistant Cam WRC-HD',
+      'Motion Detection Cam MDC-AI',
+      'Crop Monitor Camera CMC-Ultra',
+      'Perimeter Security Cam PSC-Pro',
+      'Livestock Monitor LM-Cam'
+    ],
+    drones: [
+      'DJI Mavic 3 Pro',
+      'DJI Air 3S',
+      'DJI Mini 4 Pro',
+      'Autel Evo Lite+',
+      'Parrot Anafi AI',
+      'DJI Matrice 350 RTK',
+      'Skydio 2+ Pro',
+      'DJI Agras T40',
+      'Yuneec H520E',
+      'Autel Dragonfish Pro'
+    ]
+  };
 
   const getCurrentPosition = () => {
     return new Promise((resolve, reject) => {
@@ -147,6 +194,118 @@ const AgriSenseDashboard = () => {
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
+  };
+
+  // Updated Asset management functions
+  const fetchAssets = async () => {
+    try {
+      const farmerId = localStorage.getItem("farmerId");
+      const token = localStorage.getItem("token");
+      if (!token || !farmerId) return;
+      
+      const res = await fetch(`http://localhost:5000/farmer/assets/${farmerId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.sensors && data.cameras && data.drones) {
+          setAssets(data);
+        } else {
+          // Initialize with empty arrays if no data exists
+          setAssets({
+            sensors: [],
+            cameras: [],
+            drones: []
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching assets:', error);
+      setAssets({
+        sensors: [],
+        cameras: [],
+        drones: []
+      });
+    }
+  };
+
+  const saveAssets = async () => {
+    try {
+      const farmerId = localStorage.getItem("farmerId");
+      const token = localStorage.getItem("token");
+      if (!token || !farmerId) return;
+      
+      const response = await fetch("http://localhost:5000/farmer/assets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ farmerId, ...assets })
+      });
+      
+      if (response.ok) {
+        showNotification("Assets saved successfully!", "success");
+      } else {
+        throw new Error("Failed to save assets");
+      }
+    } catch (error) {
+      showNotification("Error saving assets: " + error.message, "error");
+    }
+  };
+
+  // Device management functions
+  const addDevice = (category) => {
+    const availableDevices = deviceTemplates[category].filter(
+      template => !assets[category].some(device => device.name === template)
+    );
+    
+    if (availableDevices.length === 0) {
+      showNotification(`All ${category} have been added!`, "warning");
+      return;
+    }
+
+    const newDevice = {
+      id: Date.now(),
+      name: availableDevices[0],
+      isActive: true,
+      lastUpdated: new Date().toISOString()
+    };
+
+    setAssets(prev => ({
+      ...prev,
+      [category]: [...prev[category], newDevice]
+    }));
+  };
+
+  const removeDevice = (category, deviceId) => {
+    setAssets(prev => ({
+      ...prev,
+      [category]: prev[category].filter(device => device.id !== deviceId)
+    }));
+  };
+
+  const toggleDeviceStatus = (category, deviceId) => {
+    setAssets(prev => ({
+      ...prev,
+      [category]: prev[category].map(device =>
+        device.id === deviceId
+          ? { ...device, isActive: !device.isActive, lastUpdated: new Date().toISOString() }
+          : device
+      )
+    }));
+  };
+
+  const updateDeviceName = (category, deviceId, newName) => {
+    setAssets(prev => ({
+      ...prev,
+      [category]: prev[category].map(device =>
+        device.id === deviceId
+          ? { ...device, name: newName, lastUpdated: new Date().toISOString() }
+          : device
+      )
+    }));
   };
 
   const fetchDashboardData = async (useLocation = false) => {
@@ -356,12 +515,20 @@ const AgriSenseDashboard = () => {
     fetchDashboardData(false); // use stored location if available
   }, []);
 
+  // Fetch assets when settings tab is active
+  useEffect(() => {
+    if (activeTab === "settings") {
+      fetchAssets();
+    }
+  }, [activeTab]);
+
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: <Home className="w-5 h-5" /> },
     { id: 'crops', label: 'Crop Analysis', icon: <Leaf className="w-5 h-5" /> },
     { id: 'weather', label: 'Weather', icon: <Sun className="w-5 h-5" /> },
     { id: 'soil', label: 'Soil Health', icon: <TestTube className="w-5 h-5" /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-5 h-5" /> },
+    { id: 'settings', label: 'Farm Assets', icon: <Settings className="w-5 h-5" /> },
     { id: 'profile', label: 'Profile', icon: <User className="w-5 h-5" /> }
   ];
 
@@ -701,6 +868,145 @@ const AgriSenseDashboard = () => {
     </div>
   );
 
+  // Enhanced Device Component
+  const DeviceCard = ({ device, category, onToggleStatus, onRemove, onUpdateName }) => (
+    <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+      device.isActive 
+        ? 'bg-green-50/50 border-green-200 shadow-sm' 
+        : 'bg-gray-50/50 border-gray-200 shadow-sm opacity-75'
+    }`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => onToggleStatus(category, device.id)}
+            className={`p-2 rounded-full transition-colors ${
+              device.isActive 
+                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {device.isActive ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+          </button>
+          <div>
+            <select
+              value={device.name}
+              onChange={(e) => onUpdateName(category, device.id, e.target.value)}
+              className="text-sm font-medium bg-transparent border-none outline-none cursor-pointer"
+            >
+              {deviceTemplates[category].map(template => (
+                <option key={template} value={template}>{template}</option>
+              ))}
+            </select>
+            <p className={`text-xs mt-1 ${device.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+              {device.isActive ? 'Active' : 'Inactive'} • Last updated: {new Date(device.lastUpdated).toLocaleString()}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onRemove(category, device.id)}
+          className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // Enhanced Settings render function
+  const renderSettings = () => (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-800">Farm Assets Management</h2>
+      
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {Object.keys(assets).map(category => {
+          const activeCount = assets[category].filter(device => device.isActive).length;
+          const totalCount = assets[category].length;
+          const icons = {
+            sensors: '🔧',
+            cameras: '📷',
+            drones: '🚁'
+          };
+          const colors = {
+            sensors: 'blue',
+            cameras: 'green',
+            drones: 'purple'
+          };
+          
+          return (
+            <div key={category} className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`text-3xl`}>{icons[category]}</div>
+                <div className={`text-right`}>
+                  <span className={`text-2xl font-bold text-${colors[category]}-600`}>{activeCount}</span>
+                  <span className="text-gray-500">/{totalCount}</span>
+                </div>
+              </div>
+              <h3 className="font-semibold text-gray-800 capitalize mb-2">
+                {category === 'sensors' ? 'IoT Sensors' : 
+                 category === 'cameras' ? 'Surveillance Cameras' : 
+                 'Agricultural Drones'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {activeCount} active devices
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Device Management Sections */}
+      {Object.keys(assets).map(category => (
+        <div key={category} className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 capitalize">
+              {category === 'sensors' ? '🔧 IoT Sensors' : 
+               category === 'cameras' ? '📷 Surveillance Cameras' : 
+               '🚁 Agricultural Drones'}
+            </h3>
+            <button
+              onClick={() => addDevice(category)}
+              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add {category.slice(0, -1)}
+            </button>
+          </div>
+          
+          {assets[category].length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>No {category} added yet. Click "Add {category.slice(0, -1)}" to get started.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assets[category].map(device => (
+                <DeviceCard
+                  key={device.id}
+                  device={device}
+                  category={category}
+                  onToggleStatus={toggleDeviceStatus}
+                  onRemove={removeDevice}
+                  onUpdateName={updateDeviceName}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Save Button */}
+      <div className="flex justify-center">
+        <button
+          onClick={saveAssets}
+          className="flex items-center px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
+        >
+          <Save className="w-5 h-5 mr-2" />
+          Save All Assets
+        </button>
+      </div>
+    </div>
+  );
+
   const renderProfile = () => (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -900,6 +1206,7 @@ const AgriSenseDashboard = () => {
       case 'soil': return renderSoilHealth();
       case 'weather': return renderWeather();
       case 'analytics': return renderAnalytics();
+      case 'settings': return renderSettings();
       case 'profile': return renderProfile();
       default: return renderOverview();
     }
@@ -942,7 +1249,6 @@ const AgriSenseDashboard = () => {
             ))}
           </nav>
         </aside>
-        
 
         <main className="flex-1 p-8 overflow-y-auto">
           <header className="flex items-center justify-between mb-8">
@@ -981,9 +1287,6 @@ const AgriSenseDashboard = () => {
                 </button>
                 {showDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100">
-                    <button className="flex items-center w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors">
-                      <Settings className="w-4 h-4 mr-3 text-gray-600" /> Settings
-                    </button>
                     <button 
                       onClick={handleLogout}
                       className="flex items-center w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors text-red-600"
