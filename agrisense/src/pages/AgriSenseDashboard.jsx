@@ -1,3 +1,4 @@
+// AgriSenseDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -74,7 +75,12 @@ const AgriSenseDashboard = () => {
   const reverseGeocode = async (latitude, longitude) => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'AgriSense/1.0'
+          }
+        }
       );
       
       if (!response.ok) {
@@ -92,6 +98,44 @@ const AgriSenseDashboard = () => {
         district: address.city || address.town || address.village || address.suburb || 'Unknown District',
         country: address.country || 'Unknown Country',
         fullAddress: data.display_name
+      };
+      
+      return locationData;
+    } catch (error) {
+      throw new Error(`Geocoding failed: ${error.message}`);
+    }
+  };
+
+  const geocode = async (city, state) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(`${city}, ${state}, India`)}&format=json&addressdetails=1&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'AgriSense/1.0'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding service unavailable');
+      }
+      
+      const data = await response.json();
+      if (data.length === 0) {
+        throw new Error('Location not found');
+      }
+      
+      const address = data[0].address || {};
+      
+      const locationData = {
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon),
+        city: city || address.city || address.town || address.village || 'Unknown City',
+        state: state || address.state || 'Unknown State',
+        district: city || address.city || address.town || address.village || 'Unknown District',
+        country: address.country || 'India',
+        fullAddress: data[0].display_name
       };
       
       return locationData;
@@ -208,19 +252,27 @@ const AgriSenseDashboard = () => {
         throw new Error('No authentication token found');
       }
 
-      // Update the location info state
-      const newLocationInfo = {
-        city: manualLocation.city,
-        state: manualLocation.state,
-        district: manualLocation.city,
-        country: 'India',
-        fullAddress: `${manualLocation.city}, ${manualLocation.state}, India`,
-        latitude: null,
-        longitude: null
-      };
+      // Get coordinates for manual location
+      let locationData;
+      try {
+        locationData = await geocode(manualLocation.city, manualLocation.state);
+        localStorage.setItem('lat', locationData.latitude);
+        localStorage.setItem('lon', locationData.longitude);
+      } catch (geoError) {
+        showNotification(`Unable to get coordinates for location. Using manual input without GPS. ${geoError.message}`, 'warning');
+        locationData = {
+          city: manualLocation.city,
+          state: manualLocation.state,
+          district: manualLocation.city,
+          country: 'India',
+          fullAddress: `${manualLocation.city}, ${manualLocation.state}, India`,
+          latitude: null,
+          longitude: null
+        };
+      }
 
-      setLocationInfo(newLocationInfo);
-      localStorage.setItem('locationInfo', JSON.stringify(newLocationInfo));
+      setLocationInfo(locationData);
+      localStorage.setItem('locationInfo', JSON.stringify(locationData));
 
       const response = await fetch('http://localhost:5000/farmer/update', {
         method: 'PUT',
@@ -890,6 +942,7 @@ const AgriSenseDashboard = () => {
             ))}
           </nav>
         </aside>
+        
 
         <main className="flex-1 p-8 overflow-y-auto">
           <header className="flex items-center justify-between mb-8">
