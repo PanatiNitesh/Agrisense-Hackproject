@@ -1,3 +1,4 @@
 .env
 _pycache_/
 Model1-crop-rec\__pycache__
+Model-yeild-rec\yield_model_from_csv.joblib
