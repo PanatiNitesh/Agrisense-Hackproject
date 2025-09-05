@@ -1,5 +1,4 @@
 // server.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -85,6 +84,27 @@ mongoose.connect(Mongo)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// Simple text generation function (replaces @xenova/transformers)
+const generateFarmingResponse = (userMessage) => {
+  const lowerMessage = userMessage.toLowerCase();
+
+  if (lowerMessage.includes('weather') || lowerMessage.includes('rain') || lowerMessage.includes('temperature')) {
+    return "Based on current weather patterns, make sure to monitor your crop's water needs and consider adjusting irrigation accordingly.";
+  } else if (lowerMessage.includes('crop') || lowerMessage.includes('plant') || lowerMessage.includes('grow')) {
+    return "For optimal crop growth, ensure proper soil nutrition, adequate watering, and regular monitoring of plant health indicators.";
+  } else if (lowerMessage.includes('soil') || lowerMessage.includes('ph') || lowerMessage.includes('nutrient')) {
+    return "Soil health is crucial for farming success. Consider testing pH levels, nitrogen, phosphorus, and potassium content regularly.";
+  } else if (lowerMessage.includes('pest') || lowerMessage.includes('disease') || lowerMessage.includes('insect')) {
+    return "For pest management, implement integrated pest management practices including regular monitoring and organic solutions when possible.";
+  } else if (lowerMessage.includes('harvest') || lowerMessage.includes('yield')) {
+    return "To maximize harvest yield, focus on optimal timing, proper storage conditions, and post-harvest handling techniques.";
+  } else if (lowerMessage.includes('fertilizer') || lowerMessage.includes('nutrition')) {
+    return "Apply fertilizers based on soil test results. Organic matter like compost can improve soil structure and nutrient retention.";
+  } else {
+    return "I'm here to help with your farming questions! Feel free to ask about crops, soil health, weather, pests, or farming techniques.";
+  }
+};
+
 // Device schema for tracking cameras and sensors
 const deviceSchema = new mongoose.Schema({
   deviceId: { type: String, required: true, unique: true },
@@ -115,30 +135,30 @@ const farmerAssetsSchema = new mongoose.Schema({
   sensors: [{
     id: { type: String, required: true },
     name: { type: String, required: true },
-    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    model: { type: String, default: 'Unknown Model' },
     isActive: { type: Boolean, default: true },
-    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() },
     lastUpdated: { type: Date, default: Date.now }
   }],
   cameras: [{
     id: { type: String, required: true },
     name: { type: String, required: true },
-    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    model: { type: String, default: 'Unknown Model' },
     isActive: { type: Boolean, default: true },
-    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() },
     lastUpdated: { type: Date, default: Date.now }
   }],
   drones: [{
     id: { type: String, required: true },
     name: { type: String, required: true },
-    model: { type: String, default: 'Unknown Model' }, // Made optional with default
+    model: { type: String, default: 'Unknown Model' },
     isActive: { type: Boolean, default: true },
-    addedDate: { type: String, default: () => new Date().toLocaleDateString() }, // Made optional with default
+    addedDate: { type: String, default: () => new Date().toLocaleDateString() },
     lastUpdated: { type: Date, default: Date.now }
   }]
-}, { 
+}, {
   timestamps: true,
-  collection: 'farmerAssets' // Explicitly set collection name
+  collection: 'farmerAssets'
 });
 
 const FarmerAssets = mongoose.model('FarmerAssets', farmerAssetsSchema);
@@ -215,7 +235,6 @@ const fetchSoilData = async (lat, lon) => {
     const phResponse = await fetchWithRetry(
       `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&property=phh2o&depth=0-5cm&value=mean`
     );
-    
     let phValue = 6.5 + Math.random() * 2; // Default if parsing fails
 
     const phData = phResponse.data;
@@ -254,10 +273,9 @@ const fetchSoilData = async (lat, lon) => {
 // Helper function to sanitize and validate asset data
 const sanitizeAssetData = (assets) => {
   const currentDate = new Date().toLocaleDateString();
-  
+
   const sanitizeArray = (assetArray) => {
     if (!Array.isArray(assetArray)) return [];
-    
     return assetArray.map(asset => ({
       id: asset.id || Date.now().toString(),
       name: asset.name || 'Unnamed Asset',
@@ -309,6 +327,7 @@ app.post('/farmer/signup', async (req, res) => {
       cameras: [],
       drones: []
     });
+
     await farmerAssets.save();
 
     const token = jwt.sign(
@@ -328,7 +347,6 @@ app.post('/farmer/signup', async (req, res) => {
 app.post('/farmer/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const farmer = await Farmer.findOne({ email });
     if (!farmer) return res.status(400).json({ error: "Farmer not found" });
 
@@ -349,7 +367,6 @@ app.post('/farmer/login', async (req, res) => {
           const weatherRes = await fetchWithRetry(
             `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API}&q=${farmer.district},${farmer.state}`
           );
-
           const { current } = weatherRes.data;
           farmer.temperature = current.temp_c;
           farmer.humidity = current.humidity;
@@ -388,14 +405,14 @@ app.post('/farmer/login', async (req, res) => {
 app.get('/farmer/assets/:farmerId', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { farmerId } = req.params;
-    
+
     // Check if the requesting farmer owns these assets or is admin
     if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
       return res.status(403).json({ error: "Access denied" });
     }
 
     let assets = await FarmerAssets.findOne({ farmerId });
-    
+
     // If no assets found, create empty assets document
     if (!assets) {
       assets = new FarmerAssets({
@@ -422,7 +439,7 @@ app.get('/farmer/assets/:farmerId', authMiddleware(["farmer", "admin"]), async (
 app.post('/farmer/assets', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { farmerId, ...assetData } = req.body;
-    
+
     // Check if the requesting farmer owns these assets or is admin
     if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
       return res.status(403).json({ error: "Access denied" });
@@ -440,15 +457,15 @@ app.post('/farmer/assets', authMiddleware(["farmer", "admin"]), async (req, res)
           updatedAt: new Date()
         }
       },
-      { 
-        new: true, 
+      {
+        new: true,
         upsert: true, // Create if doesn't exist
-        runValidators: true 
+        runValidators: true
       }
     );
 
-    res.status(200).json({ 
-      message: "Assets saved successfully", 
+    res.status(200).json({
+      message: "Assets saved successfully",
       assets: {
         sensors: assets.sensors,
         cameras: assets.cameras,
@@ -465,14 +482,14 @@ app.post('/farmer/assets', authMiddleware(["farmer", "admin"]), async (req, res)
 app.get('/farmer/assets/:farmerId/stats', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { farmerId } = req.params;
-    
+
     // Check if the requesting farmer owns these assets or is admin
     if (req.farmer.farmerId !== farmerId && req.farmer.role !== 'admin') {
       return res.status(403).json({ error: "Access denied" });
     }
 
     const assets = await FarmerAssets.findOne({ farmerId });
-    
+
     if (!assets) {
       return res.status(200).json({
         totalAssets: 0,
@@ -524,7 +541,7 @@ app.get('/farmer/assets/:farmerId/stats', authMiddleware(["farmer", "admin"]), a
 app.get('/admin/assets', authMiddleware(["admin"]), async (req, res) => {
   try {
     const allAssets = await FarmerAssets.find({}).populate('farmerId', 'farmerName email');
-    
+
     const summary = {
       totalFarmersWithAssets: allAssets.length,
       totalSensors: allAssets.reduce((sum, asset) => sum + asset.sensors.length, 0),
@@ -577,7 +594,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
     // Update weather and soil data if coordinates available
     if (queryLat && queryLon) {
       const cacheKey = `lat:${queryLat},lon:${queryLon}`;
-      
+
       // Weather data update
       if (WEATHER_API) {
         const cachedWeather = weatherCache.get(cacheKey);
@@ -591,7 +608,6 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
             const weatherRes = await fetchWithRetry(
               `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API}&q=${queryLat},${queryLon}`
             );
-
             const { location, current } = weatherRes.data;
             farmer.temperature = current.temp_c;
             farmer.humidity = current.humidity;
@@ -614,7 +630,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
       // Soil data update
       const soilCacheKey = `soil:${queryLat},${queryLon}`;
       const cachedSoil = soilCache.get(soilCacheKey);
-      
+
       if (cachedSoil && Date.now() - cachedSoil.timestamp < CACHE_DURATION) {
         farmer.ph = cachedSoil.ph;
         farmer.soilTemperature = cachedSoil.soilTemperature;
@@ -662,7 +678,6 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
           const weatherRes = await fetchWithRetry(
             `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API}&q=${farmer.district},${farmer.state}`
           );
-
           const { current } = weatherRes.data;
           farmer.temperature = current.temp_c;
           farmer.humidity = current.humidity;
@@ -701,23 +716,23 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
 
     // Enhanced data with real farmer data integration
     const cropRecommendations = [
-      { 
-        crop: 'Wheat', 
-        suitability: Math.min(100, Math.max(0, Math.round(85 + (farmer.ph ? (farmer.ph - 7) * 5 : 0)))), 
-        expectedYield: Math.round(40 + (farmer.soilTemperature || 20) * 0.5), 
-        profitability: Math.round(80 + (farmer.humidity || 60) * 0.2) 
+      {
+        crop: 'Wheat',
+        suitability: Math.min(100, Math.max(0, Math.round(85 + (farmer.ph ? (farmer.ph - 7) * 5 : 0)))),
+        expectedYield: Math.round(40 + (farmer.soilTemperature || 20) * 0.5),
+        profitability: Math.round(80 + (farmer.humidity || 60) * 0.2)
       },
-      { 
-        crop: 'Rice', 
-        suitability: Math.min(100, Math.max(0, Math.round(75 + (farmer.rainfall || 10) * 0.5))), 
-        expectedYield: Math.round(35 + (farmer.soilMoisture || 40) * 0.3), 
-        profitability: Math.round(70 + (farmer.N || 20) * 0.8) 
+      {
+        crop: 'Rice',
+        suitability: Math.min(100, Math.max(0, Math.round(75 + (farmer.rainfall || 10) * 0.5))),
+        expectedYield: Math.round(35 + (farmer.soilMoisture || 40) * 0.3),
+        profitability: Math.round(70 + (farmer.N || 20) * 0.8)
       },
-      { 
-        crop: 'Corn', 
-        suitability: Math.min(100, Math.max(0, Math.round(80 + (farmer.temperature ? (farmer.temperature - 25) * 2 : 0)))), 
-        expectedYield: Math.round(38 + (farmer.K || 15) * 0.4), 
-        profitability: Math.round(75 + (farmer.P || 10) * 1.2) 
+      {
+        crop: 'Corn',
+        suitability: Math.min(100, Math.max(0, Math.round(80 + (farmer.temperature ? (farmer.temperature - 25) * 2 : 0)))),
+        expectedYield: Math.round(38 + (farmer.K || 15) * 0.4),
+        profitability: Math.round(75 + (farmer.P || 10) * 1.2)
       }
     ];
 
@@ -730,40 +745,40 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
     ];
 
     const soilHealthData = [
-      { 
-        parameter: 'pH Level', 
-        current: Math.round((farmer.ph || 7.2) * 10) / 10, 
-        optimal: 7.0, 
+      {
+        parameter: 'pH Level',
+        current: Math.round((farmer.ph || 7.2) * 10) / 10,
+        optimal: 7.0,
         status: farmer.ph ? (farmer.ph >= 6.5 && farmer.ph <= 7.5 ? 'Optimal' : farmer.ph >= 6.0 && farmer.ph <= 8.0 ? 'Good' : 'Poor') : 'Unknown'
       },
-      { 
-        parameter: 'Soil Temperature', 
-        current: Math.round((farmer.soilTemperature || 22) * 10) / 10, 
-        optimal: 20, 
+      {
+        parameter: 'Soil Temperature',
+        current: Math.round((farmer.soilTemperature || 22) * 10) / 10,
+        optimal: 20,
         status: farmer.soilTemperature ? (farmer.soilTemperature >= 18 && farmer.soilTemperature <= 24 ? 'Optimal' : 'Moderate') : 'Unknown'
       },
-      { 
-        parameter: 'Soil Moisture', 
-        current: Math.round((farmer.soilMoisture || 45) * 10) / 10, 
-        optimal: 50, 
+      {
+        parameter: 'Soil Moisture',
+        current: Math.round((farmer.soilMoisture || 45) * 10) / 10,
+        optimal: 50,
         status: farmer.soilMoisture ? (farmer.soilMoisture >= 40 && farmer.soilMoisture <= 60 ? 'Optimal' : farmer.soilMoisture >= 30 && farmer.soilMoisture <= 70 ? 'Good' : 'Poor') : 'Unknown'
       },
-      { 
-        parameter: 'Nitrogen', 
-        current: farmer.N || 25, 
-        optimal: 30, 
+      {
+        parameter: 'Nitrogen',
+        current: farmer.N || 25,
+        optimal: 30,
         status: farmer.N ? (farmer.N >= 25 ? 'Good' : farmer.N >= 15 ? 'Moderate' : 'Low') : 'Unknown'
       },
-      { 
-        parameter: 'Phosphorus', 
-        current: farmer.P || 15, 
-        optimal: 20, 
+      {
+        parameter: 'Phosphorus',
+        current: farmer.P || 15,
+        optimal: 20,
         status: farmer.P ? (farmer.P >= 18 ? 'Good' : farmer.P >= 12 ? 'Moderate' : 'Low') : 'Unknown'
       },
-      { 
-        parameter: 'Potassium', 
-        current: farmer.K || 20, 
-        optimal: 25, 
+      {
+        parameter: 'Potassium',
+        current: farmer.K || 20,
+        optimal: 25,
         status: farmer.K ? (farmer.K >= 22 ? 'Good' : farmer.K >= 15 ? 'Moderate' : 'Low') : 'Unknown'
       }
     ];
@@ -853,7 +868,7 @@ app.post('/farmer/devices', authMiddleware(["farmer", "admin"]), async (req, res
 app.put('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { deviceId } = req.params;
-    
+
     const device = await Device.findOneAndUpdate(
       { deviceId, farmerId: req.farmer.farmerId },
       { $set: req.body },
@@ -878,7 +893,7 @@ app.put('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async 
 app.delete('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { deviceId } = req.params;
-    
+
     const device = await Device.findOneAndDelete({
       deviceId,
       farmerId: req.farmer.farmerId
@@ -909,10 +924,10 @@ app.patch('/farmer/devices/:deviceId/status', authMiddleware(["farmer", "admin"]
 
     const device = await Device.findOneAndUpdate(
       { deviceId, farmerId: req.farmer.farmerId },
-      { 
-        $set: { 
+      {
+        $set: {
           status,
-          lastDataReceived: status === 'active' ? new Date() : undefined 
+          lastDataReceived: status === 'active' ? new Date() : undefined
         }
       },
       { new: true }
@@ -979,8 +994,8 @@ app.post('/devices/:deviceId/data', async (req, res) => {
 
     const device = await Device.findOneAndUpdate(
       { deviceId },
-      { 
-        $set: { 
+      {
+        $set: {
           lastDataReceived: new Date(),
           status: 'active'
         }
@@ -1042,6 +1057,47 @@ app.get('/admin/farmers', authMiddleware(["admin"]), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// GET endpoint - Retrieve farmer data
+app.get('/farmer/profile', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const farmer = await Farmer.findOne({
+      farmerId: req.farmer.farmerId
+    }).select("-password");
+
+    if (!farmer) {
+      return res.status(404).json({ error: "Farmer not found" });
+    }
+
+    res.status(200).json({ farmer });
+  } catch (err) {
+    console.error('Get profile error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT endpoint - Update farmer data (your existing one works perfectly)
+app.put('/farmer/update', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const updatedFarmer = await Farmer.findOneAndUpdate(
+      { farmerId: req.farmer.farmerId },
+      { $set: req.body },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedFarmer) {
+      return res.status(404).json({ error: "Farmer not found" });
+    }
+
+    res.status(200).json({
+      message: "Farmer data updated",
+      farmer: updatedFarmer
+    });
+  } catch (err) {
+    console.error('Update error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 
 // Admin: Get all devices across all farmers
 app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
@@ -1061,6 +1117,23 @@ app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
   } catch (err) {
     console.error('Admin devices error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// FIXED: Text generation endpoint with farming-specific responses
+app.post('/generate', async (req, res) => {
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  try {
+    const botResponse = generateFarmingResponse(message);
+    res.json({ response: botResponse });
+  } catch (error) {
+    console.error('Text generation error:', error);
+    res.status(500).json({ error: 'Failed to generate response' });
   }
 });
 
