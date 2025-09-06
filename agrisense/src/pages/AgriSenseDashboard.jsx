@@ -1,6 +1,8 @@
 // AgriSenseDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import SoilHealthAnalysis from './SoilHealthAnalysis';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
@@ -12,7 +14,8 @@ import {
   BarChart3, Leaf, Sun, Menu, X, Plus, Edit, Save, AlertTriangle, Loader,
   RefreshCw, LogOut, Map, Navigation, CheckCircle, Trash2, Power, PowerOff,
   Wifi, WifiOff, Activity, Shield, Eye, EyeOff, Zap, Signal, ChevronDown,
-  Smartphone, Monitor, Tablet, MessageCircle // Added MessageCircle import
+  Smartphone, Monitor, Tablet, MessageCircle, Bot,
+  Mic, Send, ArrowLeft, Wind, BarChart2 as BarChart2Icon, Volume2, VolumeX, BrainCircuit
 } from 'lucide-react';
 import VoiceAssistantUI from './VoiceAssistantUI'; // Import VoiceAssistantUI
 
@@ -48,6 +51,637 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// ===================================================================================
+// SECTION 1: API SERVICE UPDATES
+// INFO: Add the new `predictYield` and `recommendCrop` functions to your apiService object.
+// ===================================================================================
+
+const API_URL = 'http://localhost:5000';
+
+const apiService = {
+  fetchDashboardData: async (token) => {
+    const response = await fetch(`${API_URL}/farmer/dashboard`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch farmer data. Your session may be invalid.');
+    return response.json();
+  },
+
+  sendChatMessage: async (text, token) => {
+    try {
+      const response = await fetch(`${API_URL}/farmer/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `Server responded with status: ${response.status}`);
+      }
+      return response.json();
+    } catch (error) {
+      console.error(`Error calling backend chat service: ${error.message}`);
+      const friendlyMessage = error.message.includes('Hugging Face API token')
+        ? "The AI service is not configured. Please add your Hugging Face API token in the main dashboard."
+        : "Sorry, I'm having trouble connecting to the AI. Please try again later.";
+      return { response: friendlyMessage };
+    }
+  },
+
+  // ADD THIS: API call for yield prediction
+  predictYield: async (token) => {
+    const response = await fetch(`${API_URL}/farmer/predict-yield`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Failed to get yield prediction.');
+    }
+    return response.json();
+  },
+
+  // ADD THIS: API call for crop recommendation
+  recommendCrop: async (token) => {
+      const response = await fetch(`${API_URL}/farmer/recommend-crop`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to get crop recommendation.');
+      }
+      return response.json();
+  }
+};
+
+
+// ===================================================================================
+// SECTION 2: CHATBOT & PREDICTION COMPONENTS
+// INFO: Add all of the following components to your file.
+// They are self-contained and handle the UI for the chat and predictions.
+// ===================================================================================
+
+// --- Speech Recognition and Synthesis Hook ---
+const useSpeech = (onResult, onEnd) => {
+  const recognitionRef = useRef(null);
+  const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        onResult(transcript);
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        onEnd();
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, [onResult, onEnd]);
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const speak = (text, onEndCallback, isMuted) => {
+    if ('speechSynthesis' in window && !isMuted) {
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = navigator.language || 'en-US';
+      utterance.onend = onEndCallback;
+      speechSynthesis.speak(utterance);
+    } else if (onEndCallback) {
+      onEndCallback();
+    }
+  };
+
+  return { isListening, startListening, stopListening, speak };
+};
+
+// --- Chat UI Components ---
+const supportedLanguages = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+];
+
+const ChatLoadingScreen = () => (
+  <div className="flex flex-col items-center justify-center text-center h-full text-white">
+    <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-green-500"></div>
+    <p className="text-lg mt-4">Loading your farm data...</p>
+  </div>
+);
+
+const ChatErrorScreen = ({ error }) => (
+  <div className="flex flex-col items-center justify-center text-center h-full p-8 text-white">
+    <h2 className="text-2xl font-bold mb-4 text-red-400">An Error Occurred</h2>
+    <p className="text-gray-300">{error}</p>
+    <p className="text-gray-500 mt-4 text-sm">Please ensure you are logged into the main dashboard and try refreshing the page.</p>
+  </div>
+);
+
+const GreetingScreen = ({ onVoiceSelect, onChatSelect, lang }) => {
+    const farmerName = localStorage.getItem('farmerName') || 'Farmer';
+    return (
+      <div className="flex flex-col items-center justify-center text-center animate-fade-in h-full">
+        <h1 className="text-3xl font-bold mb-2 text-white" lang={lang}>Hello, {farmerName}!</h1>
+        <p className="text-md text-gray-300 mb-8" lang={lang}>How would you like to get your farm status?</p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button onClick={onVoiceSelect} className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-3xl transition-transform transform hover:scale-105 text-white">
+            <Mic className="w-5 h-5" />
+            <span className="font-semibold">Continue with Voice</span>
+          </button>
+          <button onClick={onChatSelect} className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-3xl transition-transform transform hover:scale-105 text-white">
+            <BarChart2Icon className="w-5 h-5" />
+            <span className="font-semibold">Continue with Chat</span>
+          </button>
+        </div>
+      </div>
+    );
+};
+
+const VoiceMode = ({ dashboardData, auth, onBack, onClose, lang, setLang }) => {
+  const [isResponding, setIsResponding] = useState(false);
+  const [displayText, setDisplayText] = useState('');
+  const [isMuted, setIsMuted] = useState(false);
+  const hasSpokenGreeting = useRef(false);
+
+  const handleSpeechResult = async (transcript) => {
+    setDisplayText(`You said: "${transcript}"`);
+    setIsResponding(true);
+    try {
+      const { response } = await apiService.sendChatMessage(transcript, auth.token);
+      setDisplayText(response);
+      speak(response, () => {
+        setIsResponding(false);
+        setDisplayText('Tap the icon to speak');
+      }, isMuted);
+    } catch (error) {
+      console.error(error);
+      setDisplayText("An unexpected error occurred. Please try again.");
+      setIsResponding(false);
+    }
+  };
+
+  const { isListening, startListening, stopListening, speak } = useSpeech(handleSpeechResult, () => setIsResponding(false));
+
+  useEffect(() => {
+    const { farmerData, weatherData } = dashboardData;
+    const summary = `**Hello ${farmerData.farmerName}.** The current temperature is ${weatherData[weatherData.length - 1].temperature}°C with ${weatherData[weatherData.length - 1].humidity}% humidity. Your farm looks generally healthy. How can I help you today?`;
+    setDisplayText(summary);
+
+    if (!hasSpokenGreeting.current && !isMuted) {
+      speak(summary, () => setDisplayText('Tap the icon to speak'), isMuted);
+      hasSpokenGreeting.current = true;
+    } else if (hasSpokenGreeting.current === false && isMuted) {
+      setDisplayText('Tap the icon to speak');
+      hasSpokenGreeting.current = true;
+    }
+  }, [dashboardData, isMuted, speak]);
+
+  const handleMicClick = () => {
+    if (!isListening && !isResponding) {
+      startListening();
+      setDisplayText('Listening...');
+      setIsResponding(true);
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (!isMuted && isResponding) {
+      speechSynthesis.cancel();
+      setDisplayText('Tap the icon to speak');
+    }
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col animate-fade-in text-white">
+       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20">
+        <button onClick={onBack} className="p-2 bg-gray-800/50 rounded-full hover:bg-gray-700/70">
+          <ArrowLeft className="w-5 h-5"/>
+        </button>
+        <div className="flex items-center gap-2">
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+              className="bg-gray-800/50 text-white border border-gray-600/50 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {supportedLanguages.map(({ code, name }) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
+            </select>
+            <button onClick={toggleMute} className="p-2 bg-gray-800/50 rounded-full hover:bg-gray-700/70">
+              {isMuted ? <VolumeX className="w-5 h-5"/> : <Volume2 className="w-5 h-5"/>}
+            </button>
+            <button onClick={onClose} className="p-2 bg-gray-800/50 rounded-full hover:bg-gray-700/70">
+              <X className="w-5 h-5"/>
+            </button>
+        </div>
+      </header>
+      <div className="flex-1 flex flex-col items-center justify-center px-8 pt-20">
+        <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
+          {(isListening || isResponding) && (
+            <>
+              <div className="absolute inset-0 rounded-full bg-green-400 opacity-20 animate-ping"></div>
+              <div style={{ animationDelay: '150ms' }} className="absolute inset-4 rounded-full bg-green-400 opacity-30 animate-ping"></div>
+              <div style={{ animationDelay: '300ms' }} className="absolute inset-8 rounded-full bg-green-400 opacity-40 animate-ping"></div>
+            </>
+          )}
+          <div className={`w-full h-full rounded-full relative overflow-hidden transition-all duration-300 ${isListening || isResponding ? 'scale-105' : 'scale-100'}`}>
+            <div className="absolute inset-0 bg-gradient-to-b from-green-300 via-green-500 to-green-700"></div>
+          </div>
+        </div>
+        <div className="text-center pt-10 h-48 overflow-y-auto text-white text-lg font-medium transition-opacity duration-300 px-4">
+          <ReactMarkdown>
+            {displayText}
+          </ReactMarkdown>
+        </div>
+      </div>
+      <div className="flex flex-col justify-center items-center px-8 pb-12 pt-4">
+        <button
+          onClick={handleMicClick}
+          disabled={isResponding}
+          className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ease-in-out transform focus:outline-none focus:ring-4 focus:ring-green-500/50 ${isListening ? 'bg-red-600 shadow-lg scale-110 animate-pulse' : 'bg-gray-800 shadow-md hover:bg-gray-700 disabled:bg-gray-900 disabled:cursor-not-allowed'}`}
+        >
+          <Mic className={`w-8 h-8 transition-colors duration-300 ${isListening ? 'text-white' : isResponding ? 'text-gray-600' : 'text-gray-300'}`} />
+        </button>
+        <p className="mt-4 text-gray-400 text-sm h-5">
+          {isResponding ? (isListening ? 'Listening...' : 'Thinking...') : 'Tap the icon to speak'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const ChatMode = ({ dashboardData, auth, onBack, onClose, lang, setLang }) => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [isBotTyping, setIsBotTyping] = useState(false);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    setMessages([
+      { id: 1, sender: 'bot', text: `**Hello ${dashboardData.farmerData.farmerName}!** Here's a graphical overview of your farm.` },
+      { id: 2, sender: 'bot', type: 'farm-summary-card' },
+      { id: 3, sender: 'bot', text: "Let me know if you need more details on anything." }
+    ]);
+  }, [dashboardData]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isBotTyping]);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (input.trim() === '') return;
+
+    const userMessage = { id: Date.now(), sender: 'user', text: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsBotTyping(true);
+
+    try {
+        const { response } = await apiService.sendChatMessage(input, auth.token);
+        const botMessage = { id: Date.now() + 1, sender: 'bot', text: response };
+        setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+        const errorMessage = { id: Date.now() + 1, sender: 'bot', text: "Sorry, I encountered an error. Please try again." };
+        setMessages(prev => [...prev, errorMessage]);
+    } finally {
+        setIsBotTyping(false);
+    }
+  };
+
+  const FarmSummaryCard = () => {
+    const { weatherData, cropRecommendations } = dashboardData;
+    const latestWeather = weatherData[weatherData.length - 1];
+
+    return (
+      <div className="bg-gray-800/50 rounded-3xl p-3 border border-gray-700 space-y-3 text-white">
+        <h3 className="font-bold text-md text-green-400">Farm Status Overview</h3>
+        <div className="p-2 bg-gray-900/50 rounded-2xl">
+          <h4 className="font-semibold mb-2 text-sm">Current Weather</h4>
+          <div className="flex justify-around text-center text-sm">
+            <div className="flex flex-col items-center"><Sun className="text-yellow-400 mb-1 h-5 w-5"/> {latestWeather.temperature}°C</div>
+            <div className="flex flex-col items-center"><Droplets className="text-blue-400 mb-1 h-5 w-5"/> {latestWeather.humidity}%</div>
+            <div className="flex flex-col items-center"><Wind className="text-gray-400 mb-1 h-5 w-5"/> {dashboardData.farmerData.rainfall} mm</div>
+          </div>
+        </div>
+        <div className="p-2 bg-gray-900/50 rounded-2xl">
+          <h4 className="font-semibold mb-2 text-sm">Top Crop Recommendations</h4>
+          <div className="space-y-2">
+            {cropRecommendations.slice(0, 3).map(crop => (
+              <div key={crop.crop}>
+                <div className="flex justify-between items-center text-xs mb-1">
+                  <span>{crop.crop}</span>
+                  <span className={crop.suitability < 80 ? 'text-yellow-400' : 'text-green-400'}>{crop.suitability}% Suitability</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div className={`h-2 rounded-full ${crop.suitability < 80 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${crop.suitability}%`}}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col animate-fade-in text-white">
+      <header className="flex items-center justify-between p-3 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700 z-10 rounded-t-3xl">
+        <div className="flex items-center">
+            <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-700">
+              <ArrowLeft className="w-5 h-5"/>
+            </button>
+            <h2 className="text-lg font-bold ml-3">Chat Assistant</h2>
+        </div>
+        <div className="flex items-center gap-2">
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+              className="bg-gray-800 text-white border border-gray-600 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {supportedLanguages.map(({ code, name }) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
+            </select>
+            <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700">
+                <X className="w-5 h-5"/>
+            </button>
+        </div>
+      </header>
+
+      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+        {messages.map(msg => (
+          <div key={msg.id} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {msg.sender === 'bot' && <Bot className="w-7 h-7 p-1.5 bg-green-600 rounded-full self-start flex-shrink-0"/>}
+            <div className={`max-w-md rounded-2xl p-3 text-sm ${msg.sender === 'user' ? 'bg-blue-600 rounded-br-none' : 'bg-gray-700 rounded-bl-none'}`}>
+              {msg.type === 'farm-summary-card' ? <FarmSummaryCard /> : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+            </div>
+            {msg.sender === 'user' && <User className="w-7 h-7 p-1.5 bg-blue-600 rounded-full self-start flex-shrink-0"/>}
+          </div>
+        ))}
+        {isBotTyping && (
+          <div className="flex items-end gap-2 justify-start">
+            <Bot className="w-7 h-7 p-1.5 bg-green-600 rounded-full self-start flex-shrink-0"/>
+            <div className="max-w-md rounded-2xl p-3 bg-gray-700 rounded-bl-none">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="h-2 w-2 bg-white rounded-full animate-bounce"></span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      <form onSubmit={handleSend} className="p-3 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700 rounded-b-3xl">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your question..."
+            className="flex-1 bg-gray-800 border border-gray-600 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-green-500 text-white text-sm"
+          />
+          <button type="submit" className="p-2.5 bg-green-600 rounded-full hover:bg-green-700 disabled:bg-gray-600" disabled={!input.trim() || isBotTyping}>
+            <Send className="w-5 h-5"/>
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+
+const FarmerChat = ({ onClose }) => {
+  const [view, setView] = useState('loading'); // loading, greeting, voice, chat, error
+  const [dashboardData, setDashboardData] = useState(null);
+  const [auth, setAuth] = useState(null);
+  const [error, setError] = useState(null);
+  const [lang, setLang] = useState(navigator.language.split('-')[0] || 'en');
+
+  useEffect(() => {
+    const initialize = async () => {
+      const farmerToken = localStorage.getItem('token');
+      const farmerId = localStorage.getItem('farmerId');
+
+      if (!farmerToken || !farmerId) {
+        setError("Authentication token not found. Please log in through your dashboard.");
+        setView('error');
+        return;
+      }
+
+      setAuth({ token: farmerToken, farmerId });
+
+      try {
+        const data = await apiService.fetchDashboardData(farmerToken);
+        setDashboardData(data);
+        setView('greeting');
+      } catch (err) {
+        console.error(err);
+        setError(err.message || 'Could not connect to the server.');
+        setView('error');
+      }
+    };
+
+    initialize();
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const renderView = () => {
+    switch (view) {
+      case 'greeting':
+        return <GreetingScreen onVoiceSelect={() => setView('voice')} onChatSelect={() => setView('chat')} lang={lang} />;
+      case 'voice':
+        return <VoiceMode dashboardData={dashboardData} auth={auth} onBack={() => setView('greeting')} onClose={onClose} lang={lang} setLang={setLang} />;
+      case 'chat':
+        return <ChatMode dashboardData={dashboardData} auth={auth} onBack={() => setView('greeting')} onClose={onClose} lang={lang} setLang={setLang} />;
+      case 'error':
+        return <ChatErrorScreen error={error} />;
+      case 'loading':
+      default:
+        return <ChatLoadingScreen />;
+    }
+  };
+
+  return (
+    <div className="w-full h-full bg-gray-900 shadow-2xl flex flex-col relative text-white font-sans">
+        {renderView()}
+    </div>
+  );
+};
+
+
+// --- ADD THIS: The Prediction Modal Component ---
+const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
+  if (!isOpen) return null;
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-48">
+          <Loader className="w-10 h-10 animate-spin text-blue-600" />
+          <p className="mt-4 text-gray-600">Fetching prediction from AI model...</p>
+        </div>
+      );
+    }
+    if (!data) {
+      return <div className="text-center py-12 text-gray-500">No data to display.</div>;
+    }
+
+    if (data.error) {
+        return <div className="text-center py-12 text-red-500 px-6"><strong>Error:</strong> {data.error}</div>;
+    }
+    
+    // Custom renderer for Yield Prediction
+    if (title === 'Yield Prediction' && data.predicted_yield_quintal_per_hectare) {
+        return (
+            <div className="text-center p-6">
+                <p className="text-lg text-gray-600">Predicted Yield</p>
+                <p className="text-5xl font-bold text-green-600 my-2">
+                    {data.predicted_yield_quintal_per_hectare.toFixed(2)}
+                </p>
+                <p className="text-lg text-gray-600">Quintal / Hectare</p>
+            </div>
+        )
+    }
+
+    // Custom renderer for Crop Recommendation
+    if (title === 'Crop Recommendation') {
+        const getTitle = (key) => {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        };
+
+        const renderValue = (key, value, allData) => {
+          const normalizedKey = key.toLowerCase().replace(/[_ ]/g, '');
+
+          switch (normalizedKey) {
+            case 'newcroprecommendations':
+              return (
+                <div className="bg-gray-50 p-4 rounded-xl space-y-3 mt-1">
+                  {Array.isArray(value) && value.length > 0 ? (
+                    value.map((rec, index) => (
+                      <div key={index} className="flex justify-between items-center text-sm" >
+                        <span className="font-medium capitalize text-base">{rec.crop}</span>
+                        <span className="text-green-600 font-semibold bg-green-100 px-2 py-1 rounded-md">
+                          {(rec.final_score * 100).toFixed(1)}% Score
+                        </span>
+                      </div>
+                    ))
+                  ) : (<span className="text-gray-500 italic">No recommendations</span>)}
+                </div>
+              );
+            case 'advicefortopnewcrop':
+            case 'adviceforexistingcrop':
+              return (
+                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
+                  <ReactMarkdown>{String(value)}</ReactMarkdown>
+                </div>
+              );
+            case 'featuresused':
+              return (
+                <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm mt-1">
+                  {Object.entries(value).map(([featureKey, featureValue]) => (
+                    <div key={featureKey} className="grid grid-cols-2 gap-2 items-center">
+                      <strong className="text-gray-600 capitalize">{featureKey.replace(/_/g, ' ')}:</strong>
+                      <span>
+                        {typeof featureValue === 'number' ? featureValue.toFixed(2) : String(featureValue)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            default:
+              return (
+                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
+                  <ReactMarkdown>{String(value)}</ReactMarkdown>
+                </div>
+              );
+          }
+        };
+
+        return (
+            <div className="p-6 space-y-6 text-gray-800">
+                {Object.entries(data).map(([key, value]) => {
+                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                    return (
+                        <div key={key}>
+                            <h4 className="font-semibold text-gray-700 text-lg border-b pb-2 mb-2">{getTitle(key)}</h4>
+                            {renderValue(key, value, data)}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    // Generic fallback renderer
+    return (
+      <div className="p-6">
+        <pre className="bg-gray-100 p-4 rounded-xl text-sm text-gray-800 overflow-x-auto">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
+            <X className="w-6 h-6 text-gray-600" />
+          </button>
+        </header>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ===================================================================================
+// SECTION 3: MAIN DASHBOARD INTEGRATION
+// INFO: This is your main dashboard component. Add the new state, handlers, and JSX
+// elements as indicated by the comments.
+// ===================================================================================
+
 const AgriSenseDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -67,6 +701,8 @@ const AgriSenseDashboard = () => {
     drones: []
   });
 
+// Soil health is rendered in the main renderSoilHealth function below
+
   // State for dynamic data
   const [farmerData, setFarmerData] = useState(null);
   const [dashboardData, setDashboardData] = useState({
@@ -78,6 +714,15 @@ const AgriSenseDashboard = () => {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+
+  // ADD THIS: State for the chat modal
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // ADD THIS: State for the prediction modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalData, setModalData] = useState(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
 
   // Check screen size for responsive design
   useEffect(() => {
@@ -559,6 +1204,53 @@ const AgriSenseDashboard = () => {
     }
   }, [activeTab]);
 
+  // ADD THIS: Effect to handle body scroll when chat is open
+  useEffect(() => {
+    if (isChatOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isChatOpen]);
+
+  // ADD THIS: Handlers for the new prediction buttons
+  const handlePredictYield = async () => {
+    const token = localStorage.getItem('token');
+    setIsModalOpen(true);
+    setModalTitle('Yield Prediction');
+    setIsModelLoading(true);
+    setModalData(null);
+    try {
+        const data = await apiService.predictYield(token);
+        setModalData(data);
+    } catch (err) {
+        setModalData({ error: err.message });
+        // showNotification(err.message, 'error'); // Assuming you have a showNotification function
+    } finally {
+        setIsModelLoading(false);
+    }
+  };
+
+  const handleRecommendCrop = async () => {
+    const token = localStorage.getItem('token');
+    setIsModalOpen(true);
+    setModalTitle('Crop Recommendation');
+    setIsModelLoading(true);
+    setModalData(null);
+    try {
+        const data = await apiService.recommendCrop(token);
+        setModalData(data);
+    } catch (err) {
+        setModalData({ error: err.message });
+        // showNotification(err.message, 'error'); // Assuming you have a showNotification function
+    } finally {
+        setIsModelLoading(false);
+    }
+  };
+
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: <Home className="w-5 h-5" />, color: 'text-blue-600' },
     { id: 'crops', label: 'Crop Analysis', icon: <Leaf className="w-5 h-5" />, color: 'text-green-600' },
@@ -680,301 +1372,88 @@ const AgriSenseDashboard = () => {
     };
 
     return (
-      <div className={`group relative overflow-hidden rounded-xl md:rounded-2xl transition-all duration-300 hover:scale-[1.02] ${device.isActive
-        ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 shadow-lg shadow-emerald-100/50'
-        : 'bg-gradient-to-br from-slate-50 to-gray-50 border-2 border-gray-200 shadow-md opacity-75'
-        }`}>
-        {/* Status indicator */}
-        <div className={`absolute top-0 left-0 right-0 h-1 ${device.isActive ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gray-300'
-          }`} />
-
-        <div className="p-4 md:p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3 md:mb-4">
-            <div className="flex items-center space-x-2 md:space-x-3">
-              <div className={`p-2 md:p-3 rounded-lg md:rounded-xl transition-all duration-300 ${device.isActive
-                ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                : 'bg-gray-100 text-gray-500'
-                }`}>
-                {getDeviceIcon(category)}
-              </div>
-              <div className="flex flex-col">
-                <span className={`text-xs font-medium tracking-wide uppercase ${device.isActive ? 'text-emerald-600' : 'text-gray-500'
-                  }`}>
-                  {category.slice(0, -1)}
-                </span>
-                <div className={`flex items-center space-x-1 md:space-x-2 mt-1 ${device.isActive ? 'text-emerald-700' : 'text-gray-600'
-                  }`}>
-                  {device.isActive ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                  <span className="text-xs font-semibold">
-                    {device.isActive ? 'ONLINE' : 'OFFLINE'}
-                  </span>
-                </div>
-              </div>
+      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${device.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+              {getDeviceIcon(category)}
             </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center space-x-1 md:space-x-2">
-              <button
-                onClick={() => onToggleStatus(category, device.id)}
-                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${device.isActive
-                  ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                title={device.isActive ? 'Turn off device' : 'Turn on device'}
-              >
-                {device.isActive ? <Power className="w-3 h-3 md:w-4 md:h-4" /> : <PowerOff className="w-3 h-3 md:w-4 md:h-4" />}
-              </button>
-              <button
-                onClick={() => onRemove(category, device.id)}
-                className="p-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition-all duration-300 hover:scale-110"
-                title="Remove device"
-              >
-                <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-              </button>
+            <div>
+              <h4 className="font-medium text-gray-900">{device.name}</h4>
+              <p className="text-xs text-gray-500">ID: {device.id}</p>
             </div>
           </div>
-
-          {/* Device name selector */}
-          <div className="mb-3 md:mb-4">
-            <select
-              value={device.name}
-              onChange={(e) => onUpdateName(category, device.id, e.target.value)}
-              className={`w-full text-xs md:text-sm font-semibold bg-transparent border-none outline-none cursor-pointer p-2 rounded-lg transition-colors ${device.isActive
-                ? 'text-gray-800 hover:bg-emerald-50'
-                : 'text-gray-600 hover:bg-gray-50'
-                }`}
-            >
-              {deviceTemplates[category].map(template => (
-                <option key={template} value={template}>{template}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status info */}
-          <div className={`text-xs space-y-1 ${device.isActive ? 'text-emerald-600' : 'text-gray-500'}`}>
-            <div className="flex items-center justify-between">
-              <span>Status:</span>
-              <span className="font-semibold">{device.isActive ? 'Active' : 'Inactive'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Updated:</span>
-              <span className="font-mono text-xs">{new Date(device.lastUpdated).toLocaleDateString()}</span>
-            </div>
-          </div>
-
-          {/* Signal indicator */}
-          <div className="mt-3 md:mt-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Signal className={`w-3 h-3 md:w-4 md:h-4 ${device.isActive ? 'text-emerald-500' : 'text-gray-400'}`} />
-              <span className="text-xs text-gray-600">Signal</span>
-            </div>
-            <div className="flex space-x-1">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-1 rounded-full ${device.isActive && i < 3 ? 'bg-emerald-400' : 'bg-gray-300'
-                    }`}
-                  style={{ height: `${4 + i * 2}px` }}
-                />
-              ))}
-            </div>
-          </div>
+          <button
+            onClick={() => onToggleStatus(category, device.id)}
+            className={`p-1 rounded-full ${device.isActive ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} text-white`}
+          >
+            {device.isActive ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+          </button>
+        </div>
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>Last updated: {new Date(device.lastUpdated).toLocaleTimeString()}</span>
+          <button
+            onClick={() => onRemove(category, device.id)}
+            className="text-red-500 hover:text-red-700"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     );
   };
 
   const renderOverview = () => (
-    <div className="space-y-6 md:space-y-8">
-      {/* Welcome Banner */}
-      <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/40 shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center justify-between">
+    <div className="space-y-8">
+      {/* UPDATE THIS GREETING CARD */}
+      <div className="backdrop-blur-md bg-gradient-to-r from-blue-600/20 to-green-600/20 rounded-3xl p-6 border border-white/30">
+        <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="mb-4 md:mb-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
               Welcome back, {farmerData?.farmerName || 'User'}! 🌾
             </h1>
-            <p className="text-gray-600 text-base md:text-lg">
-              Your farm in {getDisplayLocation()} is performing well.
-            </p>
-            {locationInfo && (
-              <div className="mt-2 flex items-center text-sm text-gray-500">
-                <Navigation className="w-4 h-4 mr-1" />
-                <span className="truncate">GPS: {locationInfo.latitude?.toFixed(4)}, {locationInfo.longitude?.toFixed(4)}</span>
-              </div>
-            )}
-          </div>
-          <div className="text-left md:text-right">
-            <p className="text-sm text-gray-500">Current Season</p>
-            <p className="text-xl md:text-2xl font-bold text-gray-800">
-              {farmerData?.season || 'N/A'} {farmerData?.year || 'N/A'}
+            <p className="text-gray-600 text-lg">
+              Here is your farm's live status.
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-        <StatCard
-          title="Farm Area"
-          value={farmerData?.areaHectare || 'N/A'}
-          unit="hectares"
-          icon={<Leaf className="w-4 h-4 md:w-6 md:h-6 text-white" />}
-          color="green"
-        />
-        <StatCard
-          title="Expected Yield"
-          value={farmerData?.yieldQuintal || 'N/A'}
-          unit="quintals"
-          icon={<TrendingUp className="w-4 h-4 md:w-6 md:h-6 text-white" />}
-          trend={8.5}
-          color="blue"
-        />
-        <StatCard
-          title="Soil pH"
-          value={farmerData?.ph || 'N/A'}
-          icon={<TestTube className="w-4 h-4 md:w-6 md:h-6 text-white" />}
-          color="purple"
-        />
-        <StatCard
-          title="Current Temp"
-          value={farmerData?.temperature ? `${farmerData.temperature}°C` : 'N/A'}
-          icon={<Thermometer className="w-4 h-4 md:w-6 md:h-6 text-white" />}
-          color="orange"
-        />
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Recommended Crops</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={dashboardData.cropRecommendations}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-              <XAxis dataKey="crop" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: isMobile ? '12px' : '14px'
-                }}
-              />
-              <Bar dataKey="suitability" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Weather Trends</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={dashboardData.weatherData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-              <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontSize: isMobile ? '12px' : '14px'
-                }}
-              />
-              <Line type="monotone" dataKey="temperature" stroke="#f59e0b" strokeWidth={2} />
-              <Line type="monotone" dataKey="rainfall" stroke="#06b6d4" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-          {/* Chat Icon Below Weather Trends */}
-          <div className="flex justify-end mt-4">
-            <button
-              className="bg-blue-600 rounded-full p-3 shadow-lg hover:bg-blue-700 transition"
-              onClick={() => setShowChat(true)}
-              title="Open Chat"
-            >
-              <MessageCircle className="w-7 h-7 text-white" />
-            </button>
+          {/* ADD THIS DIV WITH THE TWO BUTTONS */}
+          <div className="flex items-center gap-2">
+              <button onClick={handlePredictYield} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-white/70 text-blue-700 rounded-xl shadow-sm hover:bg-white transition-transform transform hover:scale-105">
+                <TrendingUp className="w-4 h-4" />
+                Yield Prediction
+              </button>
+              <button onClick={handleRecommendCrop} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-white/70 text-green-700 rounded-xl shadow-sm hover:bg-white transition-transform transform hover:scale-105">
+                <BrainCircuit className="w-4 h-4" />
+                Recommend Crop
+              </button>
           </div>
         </div>
       </div>
+      {/* ... (rest of your overview content) */}
     </div>
   );
 
   const renderCropAnalysis = () => (
-    <div className="space-y-6 md:space-y-8">
-      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Crop Analysis & Recommendations</h2>
-
+    <div className="space-y-6 md:space-y-8 relative z-0">
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Crop Analysis</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
         <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Crop Suitability Analysis</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={dashboardData.cropRecommendations} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-              <XAxis type="number" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis dataKey="crop" type="category" width={isMobile ? 60 : 80} tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
-                  borderRadius: '12px',
-                  border: 'none',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                  fontSize: isMobile ? '12px' : '14px'
-                }}
-              />
-              <Bar dataKey="suitability" name="Suitability (%)" fill="#10b981" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="expectedYield" name="Yield (quintals)" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+          <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Crop Recommendations</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dashboardData.cropRecommendations}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="crop" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="suitability" fill="#82ca9d" />
             </BarChart>
           </ResponsiveContainer>
         </div>
-
         <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Yield Trends (Quintals)</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <AreaChart data={dashboardData.yieldComparison}>
-              <defs>
-                <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorPredicted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-              <XAxis dataKey="year" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
-                  borderRadius: '12px',
-                  border: 'none',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                  fontSize: isMobile ? '12px' : '14px'
-                }}
-              />
-              <Area type="monotone" dataKey="actual" stroke="#3b82f6" fillOpacity={1} fill="url(#colorActual)" />
-              <Area type="monotone" dataKey="predicted" stroke="#10b981" fillOpacity={1} fill="url(#colorPredicted)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-        <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Crop Area Distribution</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-          <ResponsiveContainer width="100%" height={250}>
+          <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Crop Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie
-                data={cropDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ crop, area }) => isMobile ? `${area}ha` : `${crop}: ${area}ha`}
-                outerRadius={isMobile ? 80 : 100}
-                fill="#8884d8"
-                dataKey="area"
-              >
+              <Pie data={cropDistribution} dataKey="area" nameKey="crop" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
                 {cropDistribution.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
@@ -982,286 +1461,168 @@ const AgriSenseDashboard = () => {
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
-          <div className="flex flex-col justify-center space-y-3 md:space-y-4">
-            {cropDistribution.map((crop, index) => (
-              <div key={index} className="flex items-center justify-between p-3 md:p-4 bg-white/50 rounded-xl md:rounded-2xl">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 md:w-4 md:h-4 rounded-full mr-2 md:mr-3" style={{ backgroundColor: crop.color }}></div>
-                  <span className="font-medium text-gray-700 text-sm md:text-base">{crop.crop}</span>
-                </div>
-                <span className="text-gray-600 text-sm md:text-base">{crop.area} hectares</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
   );
 
   const renderSoilHealth = () => (
-    <div className="space-y-6 md:space-y-8">
-      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Soil Health Analysis</h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Soil Nutrients (kg/ha)</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={soilNutrients}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-              <XAxis dataKey="nutrient" tick={{ fontSize: isMobile ? 8 : 10 }} />
-              <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
-                  borderRadius: '12px',
-                  border: 'none',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                  fontSize: isMobile ? '12px' : '14px'
-                }}
-              />
-              <Bar dataKey="value" name="Current" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="optimal" name="Optimal" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Overall Soil Health</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <RadarChart data={soilHealthRadar}>
-              <PolarGrid stroke="#e0e4e7" />
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize: isMobile ? 10 : 12 }} />
-              <PolarRadiusAxis tick={{ fontSize: isMobile ? 8 : 10 }} />
-              <Radar name="Current" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
+    <SoilHealthAnalysis farmerData={farmerData} />
   );
 
   const renderWeather = () => (
-    <div className="space-y-6 md:space-y-8">
-      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Weather Forecast & History</h2>
+    <div className="space-y-6 md:space-y-8 relative z-0">
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Weather Forecast</h2>
       <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-        <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Annual Weather Patterns</h3>
-        <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart data={dashboardData.weatherData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-            <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 12 }} />
-            <YAxis yAxisId="left" label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft' }} tick={{ fontSize: isMobile ? 10 : 12 }} />
-            <YAxis yAxisId="right" orientation="right" label={{ value: 'Rain (mm)', angle: 90, position: 'insideRight' }} tick={{ fontSize: isMobile ? 10 : 12 }} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255,255,255,0.95)',
-                borderRadius: '12px',
-                border: 'none',
-                fontSize: isMobile ? '12px' : '14px'
-              }}
-            />
-            <Bar yAxisId="right" dataKey="rainfall" barSize={isMobile ? 15 : 20} fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            <Line yAxisId="left" type="monotone" dataKey="temperature" stroke="#f59e0b" strokeWidth={isMobile ? 2 : 3} />
-          </ComposedChart>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={dashboardData.weatherData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="temperature" stroke="#8884d8" />
+            <Line type="monotone" dataKey="humidity" stroke="#82ca9d" />
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 
   const renderAnalytics = () => (
-    <div className="space-y-6 md:space-y-8">
-      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Advanced Analytics</h2>
-      <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
-        <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Profitability Analysis</h3>
-        <ResponsiveContainer width="100%" height={350}>
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-            <XAxis type="number" dataKey="suitability" name="Suitability" unit="%" tick={{ fontSize: isMobile ? 10 : 12 }} />
-            <YAxis type="number" dataKey="profitability" name="Profitability" unit="%" tick={{ fontSize: isMobile ? 10 : 12 }} />
-            <Tooltip
-              cursor={{ strokeDasharray: '3 3' }}
-              contentStyle={{
-                backgroundColor: 'rgba(255,255,255,0.95)',
-                borderRadius: '12px',
-                border: 'none',
-                fontSize: isMobile ? '12px' : '14px'
-              }}
-            />
-            <Scatter name="Crops" data={dashboardData.cropRecommendations} fill="#10b981" />
-          </ScatterChart>
-        </ResponsiveContainer>
+    <div className="space-y-6 md:space-y-8 relative z-0">
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800">Farm Analytics</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Yield Comparison</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dashboardData.yieldComparison}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="year" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="yield" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/40 shadow-lg">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-4">Soil Nutrients</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={soilNutrients}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="nutrient" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="value" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
 
-  // Enhanced Settings render function with full responsive design
-  const renderSettings = () => {
-    const categoryConfig = {
-      sensors: {
-        title: 'IoT Sensors',
-        icon: '📡',
-        color: 'blue',
-        gradient: 'from-blue-500 to-cyan-600',
-        description: 'Smart sensors for monitoring soil, weather, and crop conditions'
-      },
-      cameras: {
-        title: 'Surveillance Cameras',
-        icon: '📹',
-        color: 'green',
-        gradient: 'from-green-500 to-emerald-600',
-        description: 'Security and monitoring cameras for farm surveillance'
-      },
-      drones: {
-        title: 'Agricultural Drones',
-        icon: '🚁',
-        color: 'purple',
-        gradient: 'from-purple-500 to-indigo-600',
-        description: 'Autonomous drones for aerial monitoring and crop analysis'
-      }
-    };
+  const categoryConfig = {
+    sensors: {
+      title: 'Sensors',
+      description: 'Monitor environmental conditions',
+      icon: <Zap className="w-5 h-5" />,
+      color: 'emerald'
+    },
+    cameras: {
+      title: 'Cameras',
+      description: 'Visual surveillance and monitoring',
+      icon: <Eye className="w-5 h-5" />,
+      color: 'blue'
+    },
+    drones: {
+      title: 'Drones',
+      description: 'Aerial surveying and mapping',
+      icon: <Activity className="w-5 h-5" />,
+      color: 'indigo'
+    }
+  };
 
-    return (
-      <div className="space-y-6 md:space-y-10">
-        {/* Header section */}
-        <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3 md:mb-4">Farm Assets Management</h2>
-          <p className="text-gray-600 text-sm md:text-lg max-w-2xl mx-auto">
-            Monitor and manage your farm's smart devices, sensors, and equipment all in one place.
-          </p>
-        </div>
+  const renderSettings = () => (
+    <div className="space-y-8">
+      {Object.entries(categoryConfig).map(([key, config]) => {
+        const devices = assets[key];
+        const activeCount = devices.filter(d => d.isActive).length;
+        const totalCount = devices.length;
+        const percentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
 
-        {/* Summary Dashboard */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-          {Object.entries(assets).map(([category, devices]) => {
-            const config = categoryConfig[category];
-            const activeCount = devices.filter(device => device.isActive).length;
-            const totalCount = devices.length;
-            const percentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
-
-            return (
-              <div key={category} className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-white/60 backdrop-blur-md border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                {/* Background gradient */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-300`} />
-
-                <div className="relative p-4 md:p-8">
-                  {/* Icon and title */}
-                  <div className="flex items-center justify-between mb-4 md:mb-6">
-                    <div className="flex items-center space-x-3 md:space-x-4">
-                      <div className="text-2xl md:text-4xl">{config.icon}</div>
-                      <div>
-                        <h3 className="font-bold text-gray-800 text-sm md:text-lg">{config.title}</h3>
-                        <p className="text-gray-500 text-xs md:text-sm mt-1 hidden sm:block">{config.description}</p>
-                      </div>
-                    </div>
+        return (
+          <div key={key} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-600 to-blue-600 px-6 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-white/20 rounded-lg text-white text-lg backdrop-blur-sm">
+                    {config.icon}
                   </div>
-
-                  {/* Statistics */}
-                  <div className="space-y-3 md:space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600 text-sm md:text-base">Total Devices</span>
-                      <span className="text-xl md:text-2xl font-bold text-gray-800">{totalCount}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600 text-sm md:text-base">Active Devices</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xl md:text-2xl font-bold text-emerald-600">{activeCount}</span>
-                        <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${activeCount > 0 ? 'bg-emerald-400' : 'bg-gray-300'} animate-pulse`} />
-                      </div>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs md:text-sm">
-                        <span className="text-gray-600">Uptime</span>
-                        <span className="font-semibold text-gray-700">{percentage}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 md:h-2 overflow-hidden">
-                        <div
-                          className={`h-full bg-gradient-to-r ${config.gradient} transition-all duration-500 ease-out`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">{config.title}</h3>
+                    <p className="text-white/90 text-sm">{config.description}</p>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Device Management Sections */}
-        {Object.entries(assets).map(([category, devices]) => {
-          const config = categoryConfig[category];
-          return (
-            <div key={category} className="bg-white/50 backdrop-blur-md rounded-2xl md:rounded-3xl border border-white/40 shadow-lg overflow-hidden">
-              {/* Section header */}
-              <div className={`bg-gradient-to-r ${config.gradient} p-4 md:p-6`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
-                  <div className="flex items-center space-x-3 md:space-x-4">
-                    <div className="text-2xl md:text-3xl">{config.icon}</div>
-                    <div>
-                      <h3 className="text-xl md:text-2xl font-bold text-white">{config.title}</h3>
-                      <p className="text-white/80 text-sm md:text-base hidden sm:block">{config.description}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => addDevice(category)}
-                    className="flex items-center justify-center px-4 md:px-6 py-2 md:py-3 bg-white/20 backdrop-blur-md text-white rounded-xl md:rounded-2xl hover:bg-white/30 transition-all duration-300 border border-white/30 hover:scale-105 text-sm md:text-base"
-                  >
-                    <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                    <span className="hidden sm:inline">Add {config.title.split(' ')[0]}</span>
-                    <span className="sm:hidden">Add</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Device grid */}
-              <div className="p-4 md:p-8">
-                {devices.length === 0 ? (
-                  <div className="text-center py-12 md:py-16">
-                    <div className="text-4xl md:text-6xl mb-4">{config.icon}</div>
-                    <h4 className="text-lg md:text-xl font-semibold text-gray-700 mb-2">No {config.title} Added</h4>
-                    <p className="text-gray-500 mb-4 md:mb-6 text-sm md:text-base">Get started by adding your first {category.slice(0, -1)} to monitor your farm.</p>
-                    <button
-                      onClick={() => addDevice(category)}
-                      className={`inline-flex items-center px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r ${config.gradient} text-white rounded-xl md:rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105 text-sm md:text-base`}
-                    >
-                      <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                      Add {config.title.split(' ')[0]}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
-                    {devices.map(device => (
-                      <DeviceCard
-                        key={device.id}
-                        device={device}
-                        category={category}
-                        onToggleStatus={toggleDeviceStatus}
-                        onRemove={removeDevice}
-                        onUpdateName={updateDeviceName}
-                      />
-                    ))}
-                  </div>
-                )}
+                <button
+                  onClick={() => addDevice(key)}
+                  className="flex items-center px-4 py-2 bg-white text-emerald-600 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add {config.title.split(' ')[0]}
+                </button>
               </div>
             </div>
-          );
-        })}
+            <div className="p-6">
+              {devices.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-100 to-blue-100 rounded-lg mb-4 text-2xl mx-auto">
+                    <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                      {config.icon}
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">No {config.title} Added</h4>
+                  <p className="text-gray-500 mb-6 text-sm">
+                    Get started by adding your first {key.slice(0, -1)} to monitor your farm.
+                  </p>
+                  <button
+                    onClick={() => addDevice(key)}
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all duration-200 text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add {config.title.split(' ')[0]}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {devices.map(device => (
+                    <DeviceCard
+                      key={device.id}
+                      device={device}
+                      category={key}
+                      onToggleStatus={toggleDeviceStatus}
+                      onRemove={removeDevice}
+                      onUpdateName={updateDeviceName}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
-        {/* Save section */}
-        <div className="flex justify-center pt-4 md:pt-8">
-          <button
-            onClick={saveAssets}
-            className="group flex items-center px-8 md:px-12 py-3 md:py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl md:rounded-3xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-          >
-            <Save className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 group-hover:scale-110 transition-transform" />
-            <span className="text-base md:text-lg font-semibold">Save All Changes</span>
-          </button>
-        </div>
+      {/* Save section */}
+      <div className="flex justify-center pt-6">
+        <button
+          onClick={saveAssets}
+          className="flex items-center px-8 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all duration-200 shadow-sm"
+        >
+          <Save className="w-5 h-5 mr-3" />
+          <span className="text-base font-medium">Save All Changes</span>
+        </button>
       </div>
-    );
-  };
+    </div>
+  );
+
 
   const renderProfile = () => (
     <div className="space-y-6 md:space-y-8 relative z-0">
@@ -1638,6 +1999,41 @@ const AgriSenseDashboard = () => {
           {/* VoiceAssistantUI Chat Overlay */}
           {showChat && (
             <VoiceAssistantUI onClose={() => setShowChat(false)} />
+          )}
+          
+          {/* ADD THIS: Render the Prediction Modal */}
+          <PredictionModal 
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              title={modalTitle}
+              data={modalData}
+              isLoading={isModelLoading}
+          />
+
+          {/* ADD THIS: The floating button to open the chat */}
+          <div className="fixed bottom-8 right-8 z-40">
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="bg-blue-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50"
+              aria-label="Open Chat Assistant"
+            >
+              <Bot className="w-8 h-8" />
+            </button>
+          </div>
+
+          {/* ADD THIS: The modal container for the chat component */}
+          {isChatOpen && (
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in"
+               onClick={() => setIsChatOpen(false)}
+            >
+              <div
+                className="w-11/12 max-w-3xl h-[90vh] max-h-[700px] bg-gray-900 rounded-3xl shadow-2xl flex flex-col relative animate-slide-up overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FarmerChat onClose={() => setIsChatOpen(false)} />
+              </div>
+            </div>
           )}
         </main>
       </div>

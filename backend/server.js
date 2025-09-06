@@ -1,4 +1,5 @@
 // server.js
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -27,10 +28,17 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Environment Variables
 const Mongo = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 const WEATHER_API = process.env.WEATHERAPI_COM_KEY;
 const SOIL_API_KEY = process.env.SOIL_API_KEY;
+const HF_TOKEN = process.env.HF_TOKEN; 
+const PYTHON_API_URL = process.env.AI_SERVICE_URL;
+
+// *** UPDATED: Using the OpenAI-compatible endpoint for gpt-oss-120b ***
+const OPENAI_COMPATIBLE_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
+const AI_MODEL_NAME = 'openai/gpt-oss-120b';
 
 // In-memory cache for weather and soil data
 const weatherCache = new Map();
@@ -87,7 +95,6 @@ mongoose.connect(Mongo)
 // Simple text generation function (replaces @xenova/transformers)
 const generateFarmingResponse = (userMessage) => {
   const lowerMessage = userMessage.toLowerCase();
-
   if (lowerMessage.includes('weather') || lowerMessage.includes('rain') || lowerMessage.includes('temperature')) {
     return "Based on current weather patterns, make sure to monitor your crop's water needs and consider adjusting irrigation accordingly.";
   } else if (lowerMessage.includes('crop') || lowerMessage.includes('plant') || lowerMessage.includes('grow')) {
@@ -235,8 +242,8 @@ const fetchSoilData = async (lat, lon) => {
     const phResponse = await fetchWithRetry(
       `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&property=phh2o&depth=0-5cm&value=mean`
     );
-    let phValue = 6.5 + Math.random() * 2; // Default if parsing fails
 
+    let phValue = 6.5 + Math.random() * 2; // Default if parsing fails
     const phData = phResponse.data;
     const phLayer = phData.properties.layers.find(l => l.code === 'phh2o');
     if (phLayer) {
@@ -273,7 +280,6 @@ const fetchSoilData = async (lat, lon) => {
 // Helper function to sanitize and validate asset data
 const sanitizeAssetData = (assets) => {
   const currentDate = new Date().toLocaleDateString();
-
   const sanitizeArray = (assetArray) => {
     if (!Array.isArray(assetArray)) return [];
     return assetArray.map(asset => ({
@@ -398,6 +404,154 @@ app.post('/farmer/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// *** NEW AI ENDPOINTS FROM TOADD1.TXT ***
+
+// Get Crop Recommendation from Python API
+app.post('/farmer/recommend-crop', authMiddleware(["farmer"]), async (req, res) => {
+  if (!PYTHON_API_URL) {
+    return res.status(503).json({ error: "AI Model service is not configured on the server." });
+  }
+  try {
+    // The farmerId is taken from the secure JWT token, not the request body
+    const farmerId = req.farmer.farmerId; 
+
+    const modelResponse = await axios.post(`${PYTHON_API_URL}/m1/crop-recommendation`, {
+      farmerId: farmerId 
+    });
+
+    res.status(200).json(modelResponse.data);
+
+  } catch (error) {
+    console.error('Crop recommendation error:', error.message);
+    // Forward the error from the Python API if available
+    if (error.response) {
+      return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
+    }
+    res.status(503).json({ error: 'AI Model service is unavailable.' });
+  }
+});
+
+// Get Yield Prediction from Python API
+app.post('/farmer/predict-yield', authMiddleware(["farmer"]), async (req, res) => {
+  if (!PYTHON_API_URL) {
+    return res.status(503).json({ error: "AI Model service is not configured on the server." });
+  }
+  try {
+    const farmerId = req.farmer.farmerId;
+
+    const modelResponse = await axios.post(`${PYTHON_API_URL}/m1/yield`, {
+      farmerId: farmerId
+    });
+
+    res.status(200).json(modelResponse.data);
+
+  } catch (error) {
+    console.error('Yield prediction error:', error.message);
+    if (error.response) {
+      return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
+    }
+    res.status(503).json({ error: 'AI Model service is unavailable.' });
+  }
+});
+
+// Handle Voice Query via Python API
+app.post('/farmer/voice-query', authMiddleware(["farmer"]), async (req, res) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: "Query text is required." });
+  }
+  if (!PYTHON_API_URL) {
+    return res.status(503).json({ error: "AI Model service is not configured on the server." });
+  }
+
+  try {
+    const farmerId = req.farmer.farmerId;
+    
+    const modelResponse = await axios.post(`${PYTHON_API_URL}/m1/voice-query`, {
+      farmerId: farmerId,
+      query: query
+    });
+
+    res.status(200).json(modelResponse.data);
+
+  } catch (error) {
+    console.error('Voice query error:', error.message);
+    if (error.response) {
+      return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
+    }
+    res.status(503).json({ error: 'AI Model service is unavailable.' });
+  }
+});
+
+// *** UPDATED: /farmer/chat using OpenAI-compatible chat completions (like runmodel.py) ***
+app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: "No text provided." });
+    }
+
+    if (!HF_TOKEN) {
+      console.error("HF_TOKEN is not configured in the server's .env file.");
+      return res.status(500).json({ error: "AI service is not configured on the server." });
+    }
+
+    const farmer = await Farmer.findOne({ farmerId: req.farmer.farmerId });
+    if (!farmer) {
+      return res.status(404).json({ error: "Farmer not found." });
+    }
+
+    const context = `
+      You are an expert agricultural assistant. Based on the following farmer's data, answer the user's question concisely.
+      - Name: ${farmer.farmerName}
+      - Location: ${farmer.currentCity || farmer.district}, ${farmer.state}
+      - Current Crop: ${farmer.crop || 'Not specified'}
+      - Soil pH: ${farmer.ph || 'N/A'}
+      - Soil Moisture: ${farmer.soilMoisture ? farmer.soilMoisture.toFixed(1) + '%' : 'N/A'}
+      - Temperature: ${farmer.temperature ? farmer.temperature.toFixed(1) + '°C' : 'N/A'}
+      
+      User's question is: "${text}"
+    `;
+
+    // Make the API call using OpenAI-compatible format
+    const hfResponse = await axios.post(
+      OPENAI_COMPATIBLE_ENDPOINT,
+      {
+        model: AI_MODEL_NAME,
+        messages: [
+          { role: "system", content: "You are a helpful agricultural AI assistant." }, // System prompt for better behavior
+          { role: "user", content: context }
+        ],
+        temperature: 0.7,
+        max_tokens: 512,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${HF_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000 // Increased timeout to 30 seconds for stability
+      }
+    );
+
+    const generatedText = hfResponse.data.choices[0].message.content.trim();
+
+    return res.status(200).json({ response: generatedText || "The AI returned an empty response." });
+
+  } catch (error) {
+    console.error('Chat endpoint error:', error.message);
+    if (error.response) {
+      // Detailed logging for debugging
+      console.error(`Status: ${error.response.status}`, error.response.data);
+      return res.status(error.response.status || 503).json({ error: error.response.data.error || 'AI service error' });
+    } else {
+      return res.status(503).json({ error: 'AI service is unavailable. Please try again later.' });
+    }
+  }
+});
+
+// *** END OF NEW AI ENDPOINTS ***
 
 // FIXED: Farmer Assets Endpoints with proper error handling
 
@@ -541,7 +695,6 @@ app.get('/farmer/assets/:farmerId/stats', authMiddleware(["farmer", "admin"]), a
 app.get('/admin/assets', authMiddleware(["admin"]), async (req, res) => {
   try {
     const allAssets = await FarmerAssets.find({}).populate('farmerId', 'farmerName email');
-
     const summary = {
       totalFarmersWithAssets: allAssets.length,
       totalSensors: allAssets.reduce((sum, asset) => sum + asset.sensors.length, 0),
@@ -609,6 +762,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
               `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API}&q=${queryLat},${queryLon}`
             );
             const { location, current } = weatherRes.data;
+
             farmer.temperature = current.temp_c;
             farmer.humidity = current.humidity;
             farmer.rainfall = current.precip_mm || 0;
@@ -679,6 +833,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
             `http://api.weatherapi.com/v1/current.json?key=${WEATHER_API}&q=${farmer.district},${farmer.state}`
           );
           const { current } = weatherRes.data;
+
           farmer.temperature = current.temp_c;
           farmer.humidity = current.humidity;
           farmer.rainfall = current.precip_mm || 0;
@@ -868,7 +1023,6 @@ app.post('/farmer/devices', authMiddleware(["farmer", "admin"]), async (req, res
 app.put('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { deviceId } = req.params;
-
     const device = await Device.findOneAndUpdate(
       { deviceId, farmerId: req.farmer.farmerId },
       { $set: req.body },
@@ -893,7 +1047,6 @@ app.put('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async 
 app.delete('/farmer/devices/:deviceId', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { deviceId } = req.params;
-
     const device = await Device.findOneAndDelete({
       deviceId,
       farmerId: req.farmer.farmerId
@@ -1057,47 +1210,57 @@ app.get('/admin/farmers', authMiddleware(["admin"]), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// GET endpoint - Retrieve farmer data
-app.get('/farmer/profile', authMiddleware(["farmer", "admin"]), async (req, res) => {
+
+app.get('/api/soil/live', async (req, res) => {
   try {
-    const farmer = await Farmer.findOne({
-      farmerId: req.farmer.farmerId
-    }).select("-password");
+    const { lat, lon } = req.query;
+    if (!lat || !lon) return res.status(400).json({ error: 'Latitude and longitude required' });
 
-    if (!farmer) {
-      return res.status(404).json({ error: "Farmer not found" });
-    }
+    // Fetch soil data from ISRIC SoilGrids API
+    const response = await axios.get(`https://rest.isric.org/soilgrids/v2.0/properties/query`, {
+      params: {
+        lon,
+        lat,
+        property: 'phh2o,nitrogen,phosphorus,potassium,soc,sand,silt,clay',
+        depth: '0-5cm',
+        value: 'mean'
+      }
+    });
 
-    res.status(200).json({ farmer });
+    // Parse the layers and depths
+    const layers = response.data?.properties?.layers || [];
+    const result = {};
+
+    layers.forEach(layer => {
+      const depthVal = layer.depths?.find(d => d.label === '0-5cm');
+      if (depthVal && depthVal.values && depthVal.values.mean !== undefined) {
+        let value = depthVal.values.mean;
+        // Convert units if required
+        if (layer.unit === 'pH*10') value /= 10;
+        result[layer.code] = value;
+      } else {
+        result[layer.code] = null;
+      }
+    });
+
+    // Create frontend-friendly data
+    const nutrients = [
+      { nutrient: 'pH Level', value: result.phh2o },
+      { nutrient: 'Nitrogen', value: result.nitrogen },
+      { nutrient: 'Phosphorus', value: result.phosphorus },
+      { nutrient: 'Potassium', value: result.potassium },
+      { nutrient: 'Organic Carbon', value: result.soc },
+      { nutrient: 'Sand (%)', value: result.sand },
+      { nutrient: 'Silt (%)', value: result.silt },
+      { nutrient: 'Clay (%)', value: result.clay }
+    ];
+
+    res.status(200).json({ nutrients });
   } catch (err) {
-    console.error('Get profile error:', err);
+    console.error('ISRIC Soil API error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
-// PUT endpoint - Update farmer data (your existing one works perfectly)
-app.put('/farmer/update', authMiddleware(["farmer", "admin"]), async (req, res) => {
-  try {
-    const updatedFarmer = await Farmer.findOneAndUpdate(
-      { farmerId: req.farmer.farmerId },
-      { $set: req.body },
-      { new: true }
-    ).select("-password");
-
-    if (!updatedFarmer) {
-      return res.status(404).json({ error: "Farmer not found" });
-    }
-
-    res.status(200).json({
-      message: "Farmer data updated",
-      farmer: updatedFarmer
-    });
-  } catch (err) {
-    console.error('Update error:', err);
-    res.status(400).json({ error: err.message });
-  }
-});
-
 
 // Admin: Get all devices across all farmers
 app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
@@ -1123,7 +1286,6 @@ app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
 // FIXED: Text generation endpoint with farming-specific responses
 app.post('/generate', async (req, res) => {
   const { message } = req.body;
-
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
   }
@@ -1140,5 +1302,5 @@ app.post('/generate', async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Secure Server with Weather & Soil Sync running on http://localhost:${PORT}`);
+  console.log(`✅ Secure Server with Weather, Soil Sync & AI Models running on http://localhost:${PORT}`);
 });
