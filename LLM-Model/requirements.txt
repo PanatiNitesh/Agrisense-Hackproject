@@ -9,3 +9,5 @@ openai
 requests
 kaggle
 dotenv
+tensorflow 
+Pillow
