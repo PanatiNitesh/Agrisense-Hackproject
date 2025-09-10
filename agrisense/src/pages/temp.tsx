@@ -116,7 +116,7 @@
 //         throw new Error('No authentication token found. Please log in again.');
 //       }
 
-//       let url = `http://localhost:5000/farmer/dashboard?farmerId=${farmerId}`;
+//       let url = `https://agrisense-hackproject.onrender.com/farmer/dashboard?farmerId=${farmerId}`;
 //       let lat = localStorage.getItem('lat');
 //       let lon = localStorage.getItem('lon');
 
@@ -197,7 +197,7 @@
 //       const token = localStorage.getItem('token');
 //       if (!token) return;
 
-//       const response = await fetch('http://localhost:5000/iot/sensors/simulate', {
+//       const response = await fetch('https://agrisense-hackproject.onrender.com/iot/sensors/simulate', {
 //         method: 'POST',
 //         headers: {
 //           'Authorization': `Bearer ${token}`
@@ -248,7 +248,7 @@
 //       setLocationInfo(newLocationInfo);
 //       localStorage.setItem('locationInfo', JSON.stringify(newLocationInfo));
 
-//       const response = await fetch('http://localhost:5000/farmer/update', {
+//       const response = await fetch('https://agrisense-hackproject.onrender.com/farmer/update', {
 //         method: 'PUT',
 //         headers: {
 //           'Content-Type': 'application/json',
@@ -290,7 +290,7 @@
 //       if (!token) {
 //         throw new Error('No authentication token found');
 //       }
-//       const response = await fetch('http://localhost:5000/farmer/update', {
+//       const response = await fetch('https://agrisense-hackproject.onrender.com/farmer/update', {
 //         method: 'PUT',
 //         headers: {
 //           'Content-Type': 'application/json',

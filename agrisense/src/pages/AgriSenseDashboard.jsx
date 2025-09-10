@@ -12,11 +12,11 @@ import {
   BarChart3, Leaf, Sun, Menu, X, Plus, Edit, Save, AlertTriangle, Loader,
   RefreshCw, LogOut, Map, Navigation, CheckCircle, Trash2, Power, PowerOff, Bot,
   Mic, Send, ArrowLeft, Wind, BarChart2 as BarChart2Icon, Volume2, VolumeX, BrainCircuit,
-  DollarSign, BookOpen, GraduationCap, Languages, Router, Camera, Upload, ScanLine
+  DollarSign, BookOpen, GraduationCap, Languages, Router, Camera, Upload, ScanLine,ArrowDownCircle
 } from 'lucide-react';
 
 // --- Configuration ---
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://agrisense-hackproject.onrender.com';
 
 // --- Language Data ---
 const supportedLanguages = [
@@ -185,6 +185,23 @@ const apiService = {
     return data.farmerData; 
   },
 
+  fetchCropPrices: async (token, filters = {}) => {
+    try {
+      const params = new URLSearchParams(filters);
+      const response = await fetch(`${API_URL}/farmer/crop-prices?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error ${response.status}`);
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching crop prices:', error.message, error);
+      return { error: error.message };
+    }
+  },
+
   sendChatMessage: async (text, token) => {
     try {
       const response = await fetch(`${API_URL}/farmer/chat`, {
@@ -254,8 +271,7 @@ const apiService = {
       }
       return response.json();
   },
-  
-  // MERGED: Plant Disease Detection Service
+
   detectPlantDisease: async (token, imageFile) => {
     const formData = new FormData();
     formData.append('image', imageFile);
@@ -271,7 +287,9 @@ const apiService = {
     }
     return response.json();
   }
-};
+}
+
+// --- MERGED: Plant Disease Detection Modal Component ---
 const PlantDiseaseModal = ({ isOpen, onClose }) => {
   const [imageSrc, setImageSrc] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -487,6 +505,7 @@ const PlantDiseaseModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
 // --- Language Selector Component ---
 const LanguageSelector = ({ currentLanguage, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -570,41 +589,124 @@ const AdviceCard = ({ title, summary, category, imageUrl }) => {
   );
 };
 
-const FinanceEducation = ({ token, language, t }) => {
+const FinanceEducation = ({ token, language, t, farmerData }) => {
   const [adviceCards, setAdviceCards] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAdviceLoading, setIsAdviceLoading] = useState(true);
+  const [cropPrices, setCropPrices] = useState([]);
+  const [isPricesLoading, setIsPricesLoading] = useState(true);
+  const [pricesError, setPricesError] = useState(null);
+  const [offset, setOffset] = useState(0); // For lazy loading
+  const [hasMore, setHasMore] = useState(true); // Track if more data is available
+  const [filters, setFilters] = useState({
+    state: farmerData?.state || 'Karnataka',
+    commodity: '',
+    minPrice: '',
+    maxPrice: '',
+    modalPrice: '',
+    limit: '10' // Initial limit for top 10
+  });
+
+  const loadCropPrices = async (newOffset = 0, append = false) => {
+    setIsPricesLoading(true);
+    setPricesError(null);
+    try {
+      const params = {
+        ...filters,
+        state: filters.state || farmerData?.state || 'Karnataka',
+        offset: newOffset.toString()
+      };
+      // Remove empty filters
+      Object.keys(params).forEach(key => {
+        if (!params[key] || params[key].trim() === '') {
+          delete params[key];
+        }
+      });
+      const response = await apiService.fetchCropPrices(token, params);
+      console.log('Crop prices response:', response); // Debug log
+      if (response.error) {
+        setPricesError(response.error);
+        setCropPrices(append ? cropPrices : []);
+      } else if (!response.data?.records || !Array.isArray(response.data.records)) {
+        setPricesError(t.noPrices || 'No price data available');
+        setCropPrices(append ? cropPrices : []);
+        setHasMore(false);
+      } else {
+        setCropPrices(append ? [...cropPrices, ...response.data.records] : response.data.records);
+        setHasMore(response.data.records.length === parseInt(filters.limit)); // More data if full batch returned
+      }
+    } catch (error) {
+      setPricesError(t.noPrices || 'Failed to fetch crop prices');
+      setCropPrices(append ? cropPrices : []);
+      setHasMore(false);
+    }
+    setIsPricesLoading(false);
+  };
 
   useEffect(() => {
-    const loadAdvice = async () => {
-      setIsLoading(true);
-      const data = await apiService.fetchFinanceAdvice(token, language);
-      if (Array.isArray(data)) {
-        setAdviceCards(data);
-      } else {
-        setAdviceCards([{ error: true, title: "Error", summary: "Received invalid data from the server.", category: "Error", imageUrl: 'https://source.unsplash.com/800x600/?error' }]);
-      }
-      setIsLoading(false);
-    };
-
     if (token) {
+      loadCropPrices(0, false); // Initial load
+      // Load advice
+      const loadAdvice = async () => {
+        setIsAdviceLoading(true);
+        const data = await apiService.fetchFinanceAdvice(token, language);
+        if (Array.isArray(data)) {
+          setAdviceCards(data);
+        } else {
+          setAdviceCards([{ error: true, title: "Error", summary: "Received invalid data from the server.", category: "Error", imageUrl: 'https://source.unsplash.com/800x600/?error' }]);
+        }
+        setIsAdviceLoading(false);
+      };
       loadAdvice();
+    } else {
+      setPricesError(t.authorizationError || 'Please log in to view prices');
+      setIsPricesLoading(false);
     }
-  }, [token, language]);
+  }, [token, language, farmerData?.state]);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplyFilters = async () => {
+    setOffset(0); // Reset offset when applying filters
+    await loadCropPrices(0, false); // Reload with new filters
+  };
+
+  const handleLoadMore = async () => {
+    const newOffset = offset + parseInt(filters.limit);
+    setOffset(newOffset);
+    await loadCropPrices(newOffset, true); // Append new data
+  };
+
+  // Define table headers based on sample data
+  const tableHeaders = [
+    { key: 'state', label: t.state || 'State' },
+    { key: 'district', label: t.district || 'District' },
+    { key: 'market', label: t.market || 'Market' },
+    { key: 'commodity', label: t.commodity || 'Commodity' },
+    { key: 'variety', label: t.variety || 'Variety' },
+    { key: 'grade', label: t.grade || 'Grade' },
+    { key: 'arrival_date', label: t.arrivalDate || 'Arrival Date' },
+    { key: 'min_price', label: t.minPrice || 'Min Price (₹)' },
+    { key: 'max_price', label: t.maxPrice || 'Max Price (₹)' },
+    { key: 'modal_price', label: t.modalPrice || 'Modal Price (₹)' }
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
+      {/* Learning Section */}
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl text-white">
             <BookOpen size={28} />
           </div>
           <div>
-            <h3 className="text-3xl font-bold text-gray-800">{t.financeTitle}</h3>
+            <h3 className="text-3xl font-bold text-gray-800">{t.learningTitle}</h3>
             <p className="text-gray-600 mt-1">{t.financeSubtitle}</p>
           </div>
         </div>
-        
-        {isLoading ? (
+        {isAdviceLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => <CardSkeleton key={i} />)}
           </div>
@@ -626,6 +728,144 @@ const FinanceEducation = ({ token, language, t }) => {
               />
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Market Prices Section */}
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl text-white">
+            <DollarSign size={28} />
+          </div>
+          <div>
+            <h3 className="text-3xl font-bold text-gray-800">{t.marketPricesTitle}</h3>
+            <p className="text-gray-600 mt-1">Real-time crop prices from various markets in India</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <input
+            type="text"
+            name="state"
+            value={filters.state}
+            onChange={handleFilterChange}
+            placeholder={t.state || 'State (e.g., Karnataka)'}
+            className="px-4 py-3 bg-white/50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            name="commodity"
+            value={filters.commodity}
+            onChange={handleFilterChange}
+            placeholder={t.commodity || 'Commodity (e.g., Capsicum)'}
+            className="px-4 py-3 bg-white/50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="number"
+            name="minPrice"
+            value={filters.minPrice}
+            onChange={handleFilterChange}
+            placeholder={t.minPrice || 'Min Price (₹)'}
+            className="px-4 py-3 bg-white/50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="number"
+            name="modalPrice"
+            value={filters.modalPrice}
+            onChange={handleFilterChange}
+            placeholder={t.modalPrice || 'Modal Price (₹)'}
+            className="px-4 py-3 bg-white/50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <button
+          onClick={handleApplyFilters}
+          disabled={isPricesLoading}
+          className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-3xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg disabled:opacity-50 mb-6"
+        >
+          {isPricesLoading ? (
+            <>
+              <Loader className="w-5 h-5 mr-2 animate-spin" />
+              {t.loading || 'Loading...'}
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-5 h-5 mr-2" />
+              {t.applyFilters || 'Apply Filters'}
+            </>
+          )}
+        </button>
+
+        {isPricesLoading && cropPrices.length === 0 ? (
+          <div className="text-center py-16">
+            <Loader className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">{t.loading || 'Loading...'}</p>
+          </div>
+        ) : pricesError ? (
+          <div className="text-center py-16 bg-red-50/50 rounded-2xl">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h4 className="text-xl font-semibold text-red-700">{t.error || 'Error'}</h4>
+            <p className="text-red-600 mt-2">{pricesError}</p>
+          </div>
+        ) : cropPrices.length === 0 ? (
+          <div className="text-center py-16 bg-gray-50/50 rounded-2xl">
+            <p className="text-gray-600">{t.noPrices || 'No price data available'}</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {tableHeaders.map(header => (
+                      <th
+                        key={header.key}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {header.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {cropPrices.map((price, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.state || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.district || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.market || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.commodity || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.variety || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.grade || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.arrival_date || 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.min_price ? `₹${price.min_price}` : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.max_price ? `₹${price.max_price}` : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.modal_price ? `₹${price.modal_price}` : 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hasMore && (
+              <button
+                onClick={handleLoadMore}
+                disabled={isPricesLoading}
+                className="mt-6 flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-3xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg disabled:opacity-50 mx-auto"
+              >
+                {isPricesLoading ? (
+                  <>
+                    <Loader className="w-5 h-5 mr-2 animate-spin" />
+                    {t.loading || 'Loading...'}
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownCircle className="w-5 h-5 mr-2" />
+                    {t.loadMore || 'Load More'}
+                  </>
+                )}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1232,7 +1472,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
 
 
 
-// --- START: SOIL HEALTH REFACTOR ---
+// --- MERGED: IMPROVED SOIL HEALTH SECTION ---
 const SoilStatCard = ({ label, value, unit, optimalRange }) => {
     const [min, max] = optimalRange;
     let status, color, bgColor, progressColor;
@@ -1405,7 +1645,6 @@ const SoilHealthSection = ({ token, t }) => {
         </div>
     );
 };
-// --- END: SOIL HEALTH REFACTOR ---
 
 
 const AgriSenseDashboard = () => {
@@ -1421,6 +1660,7 @@ const AgriSenseDashboard = () => {
   const [manualLocation, setManualLocation] = useState({ city: '', state: '' });
   const [locationInfo, setLocationInfo] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isDiseaseModalOpen, setIsDiseaseModalOpen] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -1461,7 +1701,7 @@ const AgriSenseDashboard = () => {
     setCurrentLanguage(languageCode);
     localStorage.setItem('preferredLanguage', languageCode);
   };
-
+  
   const deviceTemplates = {
     sensors: [
       'Soil Moisture Sensor SM-100', 'pH Meter Pro-pH7', 'Temperature Sensor TempMax-200', 'NPK Nutrient Analyzer NA-300', 'Weather Station WS-2000'
@@ -1988,7 +2228,7 @@ const AgriSenseDashboard = () => {
     </div>
   );
 
-// --- START: REVISED RENDERSETTINGS FUNCTION ---
+// --- MERGED: IMPROVED ASSETS/SETTINGS SECTION ---
 const renderSettings = () => {
   // Configuration object for asset categories with a unified green theme
   const categoryConfig = {
@@ -2162,12 +2402,11 @@ const renderSettings = () => {
     </div>
   );
 };
-// --- END: REVISED RENDERSETTINGS FUNCTION ---
 
-  const renderFinance = () => {
-    const token = localStorage.getItem('token');
-    return <FinanceEducation token={token} language={currentLanguage} t={t} />;
-  };
+const renderFinance = () => {
+  const token = localStorage.getItem('token');
+  return <FinanceEducation token={token} language={currentLanguage} t={t} farmerData={farmerData} />;
+};
 
   const renderProfile = () => (
     <div className="space-y-8">
@@ -2477,22 +2716,19 @@ const renderSettings = () => {
             onClose={() => setIsDiseaseModalOpen(false)}
         />
 
-        <div className="fixed bottom-8 right-8 z-40 flex flex-col gap-4">
+        <div className="fixed bottom-8 right-8 z-40 flex flex-col items-center gap-4">
            <button
             onClick={() => setIsDiseaseModalOpen(true)}
             className="bg-green-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-green-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-400/50"
             aria-label="Open Plant Disease Detection"
             title="Plant Disease Detection"
           >
-            <div className="relative w-8 h-8">
-                <Leaf className="w-6 h-6 absolute top-0 left-0" />
-                <Camera className="w-5 h-5 absolute bottom-0 right-0 bg-green-700 rounded-full p-0.5" />
+            <div className="relative w-8 h-8 flex items-center justify-center">
+                <Leaf className="w-6 h-6" />
+                <Camera className="w-4 h-4 absolute -bottom-1 -right-1 bg-green-700 rounded-full p-0.5 border-2 border-green-600" />
             </div>
           </button>
-        </div>
-
-        <div className="fixed bottom-8 right-8 z-40">
-          <button
+           <button
             onClick={() => setIsChatOpen(true)}
             className="bg-blue-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50"
             aria-label="Open Chat Assistant"

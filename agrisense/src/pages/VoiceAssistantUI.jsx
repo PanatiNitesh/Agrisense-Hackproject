@@ -53,7 +53,7 @@ export default function VoiceAssistantUI({ onClose }) {
   // FIXED: Updated fetch URL to use correct port 5000
   const fetchBotResponse = async (userInput) => {
     try {
-      const response = await fetch("http://localhost:5000/generate", {
+      const response = await fetch("https://agrisense-hackproject.onrender.com/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
