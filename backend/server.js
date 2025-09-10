@@ -1,5 +1,4 @@
 // server.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -38,7 +37,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 const WEATHER_API = process.env.WEATHERAPI_COM_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const PYTHON_API_URL = process.env.AI_SERVICE_URL;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // <-- NEW: Unsplash API Key
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; 
 
 // *** Use the custom endpoint URL provided by your hackathon organizers ***
 const OPENAI_COMPATIBLE_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions'; 
@@ -423,6 +422,42 @@ app.post('/farmer/recommend-crop', authMiddleware(["farmer"]), async (req, res) 
     res.status(503).json({ error: 'AI Model service is unavailable.' });
   }
 });
+
+
+app.post('/farmer/detect-disease', authMiddleware(["farmer"]), upload.single('image'), async (req, res) => {
+    if (!PYTHON_API_URL) {
+        return res.status(503).json({ error: "AI Model service is not configured on the server." });
+    }
+    if (!req.file) {
+        return res.status(400).json({ error: 'No image file uploaded.' });
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', req.file.buffer, { filename: req.file.originalname });
+
+        const diseaseResponse = await axios.post(
+            `${PYTHON_API_URL}/m2/plant-disease`,
+            formData,
+            {
+                headers: {
+                    ...formData.getHeaders()
+                }
+            }
+        );
+
+        res.status(200).json(diseaseResponse.data);
+
+    } catch (error) {
+        console.error('Plant disease detection error:', error.message);
+        if (error.response) {
+            console.error(`Status: ${error.response.status}`, error.response.data);
+            return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
+        }
+        res.status(503).json({ error: 'AI Model service is unavailable.' });
+    }
+});
+
 
 // Get Yield Prediction from Python API
 app.post('/farmer/predict-yield', authMiddleware(["farmer"]), async (req, res) => {

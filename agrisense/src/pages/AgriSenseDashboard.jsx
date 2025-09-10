@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, ScatterChart, Scatter
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, ScatterChart, Scatter, Legend
 } from 'recharts';
 import {
   Sprout, CloudRain, Thermometer, Droplets, TestTube,
@@ -12,7 +12,7 @@ import {
   BarChart3, Leaf, Sun, Menu, X, Plus, Edit, Save, AlertTriangle, Loader,
   RefreshCw, LogOut, Map, Navigation, CheckCircle, Trash2, Power, PowerOff, Bot,
   Mic, Send, ArrowLeft, Wind, BarChart2 as BarChart2Icon, Volume2, VolumeX, BrainCircuit,
-  DollarSign, BookOpen, GraduationCap, Languages
+  DollarSign, BookOpen, GraduationCap, Languages, Router, Camera, Upload, ScanLine
 } from 'lucide-react';
 
 // --- Configuration ---
@@ -176,6 +176,15 @@ const apiService = {
     return response.json();
   },
 
+  fetchSoilHealthData: async (token) => {
+    const response = await fetch(`${API_URL}/farmer/dashboard`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch soil health data.');
+    const data = await response.json();
+    return data.farmerData; 
+  },
+
   sendChatMessage: async (text, token) => {
     try {
       const response = await fetch(`${API_URL}/farmer/chat`, {
@@ -200,7 +209,6 @@ const apiService = {
     }
   },
 
-  // NEW: Finance Education Advice Service
   fetchFinanceAdvice: async (token, language = 'en') => {
     try {
       const response = await fetch(`${API_URL}/farmer/finance-advice`, {
@@ -245,9 +253,240 @@ const apiService = {
         throw new Error(err.error || 'Failed to get crop recommendation.');
       }
       return response.json();
+  },
+  
+  // MERGED: Plant Disease Detection Service
+  detectPlantDisease: async (token, imageFile) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch(`${API_URL}/farmer/detect-disease`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to detect disease.');
+    }
+    return response.json();
   }
 };
+const PlantDiseaseModal = ({ isOpen, onClose }) => {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [detectionResult, setDetectionResult] = useState(null);
+  const [error, setError] = useState(null);
 
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const cleanupCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startCamera = async () => {
+    cleanupCamera();
+    resetState();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      setIsCameraOn(true); // This will trigger the useEffect to attach the stream
+    } catch (err) {
+      console.error("Camera access denied:", err);
+      setError("Camera access was denied. Please allow camera permissions in your browser settings.");
+      setIsCameraOn(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOn && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Auto-play was prevented", error);
+          setError("Could not play camera stream. Please interact with the page and try again.");
+        });
+      }
+    }
+  }, [isCameraOn]);
+  
+  const resetState = () => {
+    setImageSrc(null);
+    setImageFile(null);
+    setDetectionResult(null);
+    setError(null);
+  };
+
+  const handleCapture = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setImageSrc(dataUrl);
+      
+      canvas.toBlob(blob => {
+        if (blob) {
+            setImageFile(new File([blob], "capture.jpg", { type: "image/jpeg" }));
+        }
+      }, 'image/jpeg');
+
+      cleanupCamera();
+      setIsCameraOn(false);
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      resetState();
+      cleanupCamera();
+      setIsCameraOn(false);
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageSrc(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDetectDisease = async () => {
+    if (!imageFile) {
+      setError("Please capture or upload an image first.");
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError("Authentication error. Please log in again.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setDetectionResult(null);
+
+    try {
+      const result = await apiService.detectPlantDisease(token, imageFile);
+      setDetectionResult(result);
+    } catch (err) {
+      setError(err.message || "An unknown error occurred during detection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleClose = () => {
+      cleanupCamera();
+      resetState();
+      setIsCameraOn(false);
+      onClose();
+  };
+
+  useEffect(() => {
+    // Cleanup camera when the modal is closed
+    return () => {
+      cleanupCamera();
+    };
+  }, []);
+  
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in" onClick={handleClose}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center"><ScanLine className="w-6 h-6 mr-2 text-green-600"/>Plant Disease Detection</h2>
+          <button onClick={handleClose} className="p-2 rounded-full hover:bg-gray-100">
+            <X className="w-6 h-6 text-gray-600" />
+          </button>
+        </header>
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="w-full aspect-video bg-gray-200 rounded-2xl flex items-center justify-center overflow-hidden mb-4">
+                 {imageSrc && !isCameraOn && <img src={imageSrc} alt="Plant Preview" className="w-full h-full object-contain" />}
+                 {isCameraOn && <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>}
+                 {!imageSrc && !isCameraOn && (
+                    <div className="text-center text-gray-500">
+                        <Camera size={48} className="mx-auto mb-2"/>
+                        <p>Start camera or upload an image</p>
+                    </div>
+                 )}
+            </div>
+
+            {error && <div className="bg-red-100 text-red-700 p-3 rounded-xl text-sm text-center mb-4">{error}</div>}
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <button onClick={startCamera} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+                    <Camera size={20}/> {isCameraOn ? "Restart Camera" : "Start Camera"}
+                </button>
+                {isCameraOn && (
+                    <button onClick={handleCapture} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors">
+                       <div className="w-5 h-5 rounded-full bg-white border-2 border-green-600"></div> Capture Image
+                    </button>
+                )}
+                {!isCameraOn && (
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors">
+                       <Upload size={20}/> Upload Image
+                    </button>
+                )}
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+            </div>
+
+            {imageFile && (
+                <button onClick={handleDetectDisease} disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors disabled:bg-gray-400">
+                    {isLoading ? <Loader className="w-5 h-5 animate-spin"/> : <ScanLine size={20}/>}
+                    {isLoading ? 'Analyzing...' : 'Detect Disease'}
+                </button>
+            )}
+            
+            {detectionResult && (
+                <div className="mt-6 bg-gray-50 p-4 rounded-2xl border">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Detection Result</h3>
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                           <span className="font-semibold text-gray-600">Predicted Disease:</span>
+                           <span className="font-bold text-lg text-blue-600">{detectionResult.predicted_class}</span>
+                        </div>
+                         <div className="flex justify-between">
+                           <span className="font-semibold text-gray-600">Confidence:</span>
+                           <span className="font-medium text-green-700">{(detectionResult.confidence * 100).toFixed(2)}%</span>
+                        </div>
+                        {detectionResult.description && (
+                            <div>
+                                <h4 className="font-semibold text-gray-600 mt-3 mb-1">Description:</h4>
+                                <p className="text-gray-700">{detectionResult.description}</p>
+                            </div>
+                        )}
+                         {detectionResult.remedies && (
+                            <div>
+                                <h4 className="font-semibold text-gray-600 mt-3 mb-1">Recommended Remedies:</h4>
+                                <ul className="list-disc list-inside text-gray-700 space-y-1">
+                                    {detectionResult.remedies.map((remedy, index) => <li key={index}>{remedy}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+        <canvas ref={canvasRef} className="hidden"></canvas>
+      </div>
+    </div>
+  );
+};
 // --- Language Selector Component ---
 const LanguageSelector = ({ currentLanguage, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -288,9 +527,7 @@ const LanguageSelector = ({ currentLanguage, onLanguageChange }) => {
   );
 };
 
-// --- REBUILT Finance Education Component ---
-
-// Skeleton Loader for Cards
+// --- Finance Education Component ---
 const CardSkeleton = () => (
   <div className="bg-white/50 rounded-2xl shadow-lg p-4 animate-pulse">
     <div className="w-full h-40 bg-gray-300 rounded-lg mb-4"></div>
@@ -301,7 +538,6 @@ const CardSkeleton = () => (
   </div>
 );
 
-// Advice Card Component - UPDATED
 const AdviceCard = ({ title, summary, category, imageUrl }) => {
   const getCategoryStyle = (cat) => {
     switch (cat.toLowerCase()) {
@@ -334,7 +570,6 @@ const AdviceCard = ({ title, summary, category, imageUrl }) => {
   );
 };
 
-// Main FinanceEducation Component - UPDATED
 const FinanceEducation = ({ token, language, t }) => {
   const [adviceCards, setAdviceCards] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -397,9 +632,6 @@ const FinanceEducation = ({ token, language, t }) => {
   );
 };
 
-
-// ... (The rest of your frontend code (Speech hook, Chat components, Dashboard, etc.) remains the same)
-// --- Speech Recognition and Synthesis Hook ---
 const useSpeech = (onResult, onEnd) => {
   const recognitionRef = useRef(null);
   const [isListening, setIsListening] = useState(false);
@@ -459,7 +691,6 @@ const useSpeech = (onResult, onEnd) => {
   return { isListening, startListening, stopListening, speak };
 };
 
-// --- Chat UI Components ---
 const ChatLoadingScreen = () => (
   <div className="flex flex-col items-center justify-center text-center h-full text-white">
     <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-green-500"></div>
@@ -861,7 +1092,6 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
         return <div className="text-center py-12 text-red-500 px-6"><strong>Error:</strong> {data.error}</div>;
     }
     
-    // Custom renderer for Yield Prediction
     if (title === 'Yield Prediction' && data.predicted_yield_quintal_per_hectare) {
         return (
             <div className="text-center p-6">
@@ -874,26 +1104,13 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
         )
     }
 
-    // Custom renderer for Crop Recommendation
     if (title === 'Crop Recommendation') {
-        const findKey = (obj, searchKey) => {
-            const normalizedSearchKey = searchKey.toLowerCase().replace(/ /g, '');
-            for (const key in obj) {
-                if (key.toLowerCase().replace(/ /g, '') === normalizedSearchKey) {
-                    return key;
-                }
-            }
-            return null;
-        };
-        
         const getTitle = (key) => {
             return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         };
 
-        const renderValue = (key, value, allData) => {
-          const normalizedKey = key.toLowerCase().replace(/[_ ]/g, '');
-
-          switch (normalizedKey) {
+        const renderValue = (key, value) => {
+          switch (key.toLowerCase().replace(/[_ ]/g, '')) {
             case 'newcroprecommendations':
               return (
                 <div className="bg-gray-50 p-4 rounded-xl space-y-3 mt-1">
@@ -978,7 +1195,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
                     return (
                         <div key={key}>
                             <h4 className="font-semibold text-gray-700 text-lg border-b pb-2 mb-2">{getTitle(key)}</h4>
-                            {renderValue(key, value, data)}
+                            {renderValue(key, value)}
                         </div>
                     );
                 })}
@@ -1013,6 +1230,184 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
   );
 };
 
+
+
+// --- START: SOIL HEALTH REFACTOR ---
+const SoilStatCard = ({ label, value, unit, optimalRange }) => {
+    const [min, max] = optimalRange;
+    let status, color, bgColor, progressColor;
+  
+    if (value < min) {
+      status = 'Low';
+      color = 'text-yellow-600';
+      bgColor = 'bg-yellow-50';
+      progressColor = 'bg-yellow-500';
+    } else if (value > max) {
+      status = 'High';
+      color = 'text-red-600';
+      bgColor = 'bg-red-50';
+      progressColor = 'bg-red-500';
+    } else {
+      status = 'Optimal';
+      color = 'text-green-600';
+      bgColor = 'bg-green-50';
+      progressColor = 'bg-green-500';
+    }
+  
+    const progressPercentage = Math.min(100, (value / (max + (max-min)/2)) * 100);
+  
+    return (
+      <div className={`backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-lg`}>
+        <div className="flex justify-between items-start">
+            <div>
+                <p className="text-gray-600 font-medium">{label}</p>
+                <p className="text-3xl font-bold text-gray-800 my-1">{value?.toFixed(2) || 'N/A'}</p>
+                <p className="text-gray-500 text-sm">{unit}</p>
+            </div>
+            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${color} ${bgColor}`}>
+                {status}
+            </span>
+        </div>
+        <div className="mt-4">
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div className={`${progressColor} h-2.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>0</span>
+            <span>{min}</span>
+            <span>{max}</span>
+            <span>{max + (max - min)}</span>
+          </div>
+        </div>
+      </div>
+    );
+};
+
+const SoilHealthSection = ({ token, t }) => {
+    const [soilData, setSoilData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const loadSoilData = async () => {
+            if (!token) {
+                setError("Authentication token not found.");
+                setLoading(false);
+                return;
+            }
+            try {
+                setLoading(true);
+                const data = await apiService.fetchSoilHealthData(token);
+                setSoilData(data);
+                setError(null);
+            } catch (err) {
+                setError(err.message || "Could not fetch soil data.");
+                setSoilData(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadSoilData();
+    }, [token]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader className="w-10 h-10 animate-spin text-blue-600" />
+                <p className="ml-4 text-gray-600">Loading Soil Health Data...</p>
+            </div>
+        );
+    }
+
+    if (error || !soilData) {
+        return (
+            <div className="flex flex-col items-center justify-center h-96 bg-red-50/50 rounded-2xl">
+                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+                <h4 className="text-xl font-semibold text-red-700">Failed to Load Data</h4>
+                <p className="text-red-600 mt-2">{error || "No soil data available."}</p>
+            </div>
+        );
+    }
+
+    const soilMetrics = [
+        { label: 'Nitrogen (N)', key: 'N', unit: 'kg/ha', optimalRange: [100, 150] },
+        { label: 'Phosphorus (P)', key: 'P', unit: 'kg/ha', optimalRange: [60, 90] },
+        { label: 'Potassium (K)', key: 'K', unit: 'kg/ha', optimalRange: [70, 100] },
+        { label: 'Acidity (pH)', key: 'ph', unit: '', optimalRange: [6.5, 7.5] },
+        { label: 'Moisture', key: 'soilMoisture', unit: '%', optimalRange: [60, 80] },
+        { label: 'Rainfall', key: 'rainfall', unit: 'mm', optimalRange: [80, 120] },
+    ];
+    
+    const getRecommendations = () => {
+        const recommendations = [];
+        if (soilData.N < 100) recommendations.push("Nitrogen level is low. Consider using urea or ammonium nitrate fertilizers.");
+        if (soilData.N > 150) recommendations.push("Nitrogen level is high. Avoid nitrogen-rich fertilizers for the next cycle.");
+        if (soilData.P < 60) recommendations.push("Phosphorus is deficient. Apply DAP or superphosphate.");
+        if (soilData.K < 70) recommendations.push("Potassium is low. Muriate of potash (MOP) can improve the levels.");
+        if (soilData.ph < 6.5) recommendations.push("Soil is acidic. Applying agricultural lime can help raise the pH.");
+        if (soilData.ph > 7.5) recommendations.push("Soil is alkaline. Use sulfur or gypsum to lower the pH.");
+        if (recommendations.length === 0) return ["Your soil nutrients appear well-balanced for most crops."];
+        return recommendations;
+    };
+
+    const recommendations = getRecommendations();
+    
+    const soilHealthRadar = [
+        { subject: 'Nitrogen', A: soilData?.N / 150 * 100 || 0, fullMark: 100 },
+        { subject: 'Phosphorus', A: soilData?.P / 100 * 100 || 0, fullMark: 100 },
+        { subject: 'Potassium', A: soilData?.K / 100 * 100 || 0, fullMark: 100 },
+        { subject: 'pH', A: (soilData?.ph - 4) / 5 * 100 || 0, fullMark: 100 },
+        { subject: 'Moisture', A: soilData?.soilMoisture || 0, fullMark: 100 },
+    ];
+    
+    return (
+        <div className="space-y-8">
+            <h2 className="text-3xl font-bold text-gray-800">Soil Nutrient Analysis</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {soilMetrics.map(metric => (
+                    <SoilStatCard
+                        key={metric.key}
+                        label={metric.label}
+                        value={soilData[metric.key]}
+                        unit={metric.unit}
+                        optimalRange={metric.optimalRange}
+                    />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div className="lg:col-span-3 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+                    <h3 className="text-xl font-bold text-gray-800 mb-6">Overall Soil Health (%)</h3>
+                    <ResponsiveContainer width="100%" height={350}>
+                        <RadarChart data={soilHealthRadar}>
+                            <PolarGrid stroke="#e0e4e7" />
+                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 14 }} />
+                            <PolarRadiusAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+                            <Radar name="Current" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2}/>
+                            <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                </div>
+                <div className="lg:col-span-2 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">Recommendations</h3>
+                    <ul className="space-y-4">
+                        {recommendations.map((rec, index) => (
+                            <li key={index} className="flex items-start">
+                                <CheckCircle className="w-5 h-5 text-green-500 mr-3 mt-1 flex-shrink-0" />
+                                <span className="text-gray-700">{rec}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+};
+// --- END: SOIL HEALTH REFACTOR ---
+
+
 const AgriSenseDashboard = () => {
   const [currentLanguage, setCurrentLanguage] = useState(() => {
     return localStorage.getItem('preferredLanguage') || 'en';
@@ -1027,20 +1422,17 @@ const AgriSenseDashboard = () => {
   const [locationInfo, setLocationInfo] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   
-  // Prediction modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalData, setModalData] = useState(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
 
-  // Asset management state with detailed devices
   const [assets, setAssets] = useState({
     sensors: [],
     cameras: [],
     drones: []
   });
 
-  // State for dynamic data
   const [farmerData, setFarmerData] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     cropRecommendations: [],
@@ -1052,7 +1444,6 @@ const AgriSenseDashboard = () => {
 
   const navigate = useNavigate();
 
-  // Get current translations
   const t = translations[currentLanguage];
 
   useEffect(() => {
@@ -1071,43 +1462,15 @@ const AgriSenseDashboard = () => {
     localStorage.setItem('preferredLanguage', languageCode);
   };
 
-  // Predefined device names for realistic options
   const deviceTemplates = {
     sensors: [
-      'Soil Moisture Sensor SM-100',
-      'pH Meter Pro-pH7',
-      'Temperature Sensor TempMax-200',
-      'NPK Nutrient Analyzer NA-300',
-      'Weather Station WS-2000',
-      'Light Intensity Sensor LIS-150',
-      'Humidity Monitor HM-250',
-      'CO2 Level Detector CLD-400',
-      'Water Flow Sensor WFS-100',
-      'Conductivity Meter CM-500'
+      'Soil Moisture Sensor SM-100', 'pH Meter Pro-pH7', 'Temperature Sensor TempMax-200', 'NPK Nutrient Analyzer NA-300', 'Weather Station WS-2000'
     ],
     cameras: [
-      'Field Monitor Cam FM-4K',
-      'Security Camera SC-Pro',
-      'Thermal Imaging Cam TIC-300',
-      'Night Vision Camera NVC-200',
-      'Pan-Tilt Camera PTC-360',
-      'Weather Resistant Cam WRC-HD',
-      'Motion Detection Cam MDC-AI',
-      'Crop Monitor Camera CMC-Ultra',
-      'Perimeter Security Cam PSC-Pro',
-      'Livestock Monitor LM-Cam'
+      'Field Monitor Cam FM-4K', 'Security Camera SC-Pro', 'Thermal Imaging Cam TIC-300', 'Night Vision Camera NVC-200'
     ],
     drones: [
-      'DJI Mavic 3 Pro',
-      'DJI Air 3S',
-      'DJI Mini 4 Pro',
-      'Autel Evo Lite+',
-      'Parrot Anafi AI',
-      'DJI Matrice 350 RTK',
-      'Skydio 2+ Pro',
-      'DJI Agras T40',
-      'Yuneec H520E',
-      'Autel Dragonfish Pro'
+      'DJI Mavic 3 Pro', 'DJI Air 3S', 'DJI Mini 4 Pro', 'Autel Evo Lite+'
     ]
   };
 
@@ -1120,14 +1483,13 @@ const AgriSenseDashboard = () => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 60000 // 1 minute cache
+        maximumAge: 60000 
       });
     });
   };
 
   const reverseGeocode = async (latitude, longitude) => {
     try {
-      // Using a free reverse geocoding API for demonstration
       const response = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
       );
@@ -1177,10 +1539,8 @@ const AgriSenseDashboard = () => {
       });
       setAssets(data.assets || { sensors: [], cameras: [], drones: [] });
       
-      // Store farmer name for chat component
       localStorage.setItem('farmerName', data.farmerData.farmerName);
       
-      // Set initial location from profile, then try to update with GPS
       setLocationInfo({
           city: data.farmerData.district,
           state: data.farmerData.state,
@@ -1188,7 +1548,7 @@ const AgriSenseDashboard = () => {
           longitude: null,
           fullAddress: 'Location based on profile.'
       });
-      handleRefreshLocation(false); // Refresh without showing loading spinner initially
+      handleRefreshLocation(false);
     } catch (err) {
       console.error(err);
       setError('Failed to load dashboard data. Please try again.');
@@ -1258,7 +1618,7 @@ const AgriSenseDashboard = () => {
     setAssets(prevAssets => {
       const newDevice = {
         id: `device_${Date.now()}`,
-        name: deviceTemplates[category][0], // Default to the first template
+        name: deviceTemplates[category][0],
         isActive: true,
         lastUpdated: new Date().toISOString()
       };
@@ -1297,7 +1657,6 @@ const AgriSenseDashboard = () => {
   };
 
   const saveAssets = async () => {
-    // Mock API call
     showNotification('Saving assets...', 'success');
     console.log('Saving assets:', assets);
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -1305,7 +1664,6 @@ const AgriSenseDashboard = () => {
   };
 
   const handleProfileSave = async () => {
-    // Mock API call
     console.log('Saving profile:', farmerData);
     showNotification('Saving profile changes...', 'success');
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -1313,7 +1671,6 @@ const AgriSenseDashboard = () => {
     showNotification('Profile updated successfully!', 'success');
   };
 
-  // Handlers for prediction buttons
   const handlePredictYield = async () => {
     const token = localStorage.getItem('token');
     setIsModalOpen(true);
@@ -1348,7 +1705,7 @@ const AgriSenseDashboard = () => {
     }
   };
   
-  if (loading) {
+  if (loading && !farmerData) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
         <Loader className="w-12 h-12 animate-spin text-blue-600" />
@@ -1357,7 +1714,7 @@ const AgriSenseDashboard = () => {
     );
   }
 
-  if (error) {
+  if (error && !farmerData) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-50">
         <AlertTriangle className="w-16 h-16 text-red-500" />
@@ -1380,14 +1737,6 @@ const AgriSenseDashboard = () => {
     { id: 'profile', label: t.profile, icon: <User className="w-5 h-5" /> }
   ];
 
-  const soilHealthRadar = [
-    { subject: 'Nitrogen', A: farmerData?.N / 150 * 100 || 0, fullMark: 100 },
-    { subject: 'Phosphorus', A: farmerData?.P / 100 * 100 || 0, fullMark: 100 },
-    { subject: 'Potassium', A: farmerData?.K / 100 * 100 || 0, fullMark: 100 },
-    { subject: 'pH', A: (farmerData?.ph - 4) / 5 * 100 || 0, fullMark: 100 },
-    { subject: 'Moisture', A: farmerData?.soilMoisture || 0, fullMark: 100 },
-  ];
-
   const NoDataPlaceholder = ({ height = 300 }) => (
     <div style={{ height }} className="flex items-center justify-center text-gray-500 bg-gray-50/50 rounded-2xl">
       <p>{t.noData}</p>
@@ -1396,7 +1745,6 @@ const AgriSenseDashboard = () => {
 
   const renderOverview = () => (
     <div className="space-y-8">
-      {/* Header with Language Selector */}
       <div className="backdrop-blur-md bg-gradient-to-r from-blue-600/20 to-green-600/20 rounded-3xl p-6 border border-white/30">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="mb-4 md:mb-0 flex-grow">
@@ -1424,7 +1772,6 @@ const AgriSenseDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="backdrop-blur-md bg-white/40 p-6 rounded-3xl border border-white/30 shadow-xl flex items-center">
           <div className="p-4 bg-green-100 rounded-full"><Leaf className="w-8 h-8 text-green-600"/></div>
@@ -1456,7 +1803,6 @@ const AgriSenseDashboard = () => {
         </div>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
           <h3 className="text-xl font-bold text-gray-800 mb-6">{t.yieldComparison}</h3>
@@ -1515,46 +1861,10 @@ const AgriSenseDashboard = () => {
     </div>
   );
 
-  const renderSoilHealth = () => (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">Soil Nutrient Analysis</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">NPK Levels (vs Optimal)</h3>
-           {farmerData?.N !== undefined ? (
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                { name: 'Nitrogen', current: farmerData.N, optimal: 120 },
-                { name: 'Phosphorus', current: farmerData.P, optimal: 80 },
-                { name: 'Potassium', current: farmerData.K, optimal: 90 },
-                ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
-                <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[12, 12, 0, 0]} />
-                <Bar dataKey="optimal" name="Optimal" fill="#06b6d4" radius={[12, 12, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
-          ) : <NoDataPlaceholder />}
-        </div>
-
-        <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">Overall Soil Health (%)</h3>
-          {farmerData?.N !== undefined ? (
-            <ResponsiveContainer width="100%" height={300}>
-                <RadarChart data={soilHealthRadar}>
-                <PolarGrid stroke="#e0e4e7" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-                <Radar name="Current" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2} />
-                </RadarChart>
-            </ResponsiveContainer>
-            ) : <NoDataPlaceholder />}
-        </div>
-      </div>
-    </div>
-  );
+  const renderSoilHealth = () => {
+    const token = localStorage.getItem('token');
+    return <SoilHealthSection token={token} t={t} />;
+  };
 
   const renderWeather = () => (
     <div className="space-y-8">
@@ -1584,15 +1894,52 @@ const AgriSenseDashboard = () => {
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6">Profitability vs. Suitability Analysis</h3>
         {dashboardData.cropRecommendations && dashboardData.cropRecommendations.length > 0 ? (
-            <ResponsiveContainer width="100%" height={400}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e4e7" />
-                <XAxis type="number" dataKey="suitability" name="Suitability" unit="%" tick={{ fontSize: 12 }} />
-                <YAxis type="number" dataKey="profitability" name="Profitability" unit="%" tick={{ fontSize: 12 }} />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
-                <Scatter name="Crops" data={dashboardData.cropRecommendations} fill="#10b981" />
+          <ResponsiveContainer width="100%" height={400}>
+            <ScatterChart margin={{ top: 20, right: 30, bottom: 50, left: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+              <XAxis
+                type="number"
+                dataKey="suitability"
+                name="Suitability"
+                unit="%"
+                tick={{ fontSize: 14, fill: '#374151' }}
+                label={{ value: 'Suitability (%)', position: 'bottom', offset: 20, fill: '#374151', fontSize: 16 }}
+              />
+              <YAxis
+                type="number"
+                dataKey="profitability"
+                name="Profitability"
+                unit="%"
+                tick={{ fontSize: 14, fill: '#374151' }}
+                label={{ value: 'Profitability (%)', angle: -90, position: 'left', offset: 20, fill: '#374151', fontSize: 16 }}
+              />
+              <Tooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                contentStyle={{
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  borderRadius: '1.5rem',
+                  border: '1px solid #e5e7eb',
+                  padding: '12px',
+                  fontSize: '14px'
+                }}
+                formatter={(value, name, props) => [
+                  `${value}%`,
+                  `${props.payload.crop} ${name}`
+                ]}
+              />
+              <Legend verticalAlign="top" height={36} />
+              <Scatter
+                name="Crops"
+                data={dashboardData.cropRecommendations}
+                fill="#10b981"
+                shape="circle"
+                fillOpacity={0.8}
+                stroke="#047857"
+                strokeWidth={2}
+                r={8}
+              />
             </ScatterChart>
-            </ResponsiveContainer>
+          </ResponsiveContainer>
         ) : <NoDataPlaceholder height={400} />}
       </div>
     </div>
@@ -1641,96 +1988,181 @@ const AgriSenseDashboard = () => {
     </div>
   );
 
-  const renderSettings = () => (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">Farm Assets Management</h2>
+// --- START: REVISED RENDERSETTINGS FUNCTION ---
+const renderSettings = () => {
+  // Configuration object for asset categories with a unified green theme
+  const categoryConfig = {
+    sensors: {
+      icon: <Router className="w-6 h-6 text-green-700" />,
+      label: 'IoT Sensors',
+    },
+    cameras: {
+      icon: <Camera className="w-6 h-6 text-green-700" />,
+      label: 'Surveillance Cameras',
+    },
+    drones: {
+      icon: <Navigation className="w-6 h-6 text-green-700" />,
+      label: 'Agricultural Drones',
+    }
+  };
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+  // Professional component styles with enhanced design system
+  const styles = {
+    container: 'min-h-screen bg-slate-50 p-6',
+    contentWrapper: 'max-w-7xl mx-auto space-y-8',
+    headerSection: 'text-center mb-12',
+    mainTitle: 'text-4xl font-bold text-slate-800 tracking-tight mb-4',
+    subtitle: 'text-lg text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed',
+    summaryCard: 'bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 p-5',
+    detailsCard: 'bg-white rounded-lg border border-slate-200 shadow-md p-6',
+    button: 'inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-3 focus:ring-offset-2 active:transform active:scale-95',
+    iconWrapper: 'flex items-center justify-center w-14 h-14 rounded-xl mb-4',
+    gridContainer: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.contentWrapper}>
+        <header className={styles.headerSection}>
+          <h1 className={styles.mainTitle}>
+            Farm Assets Management System
+          </h1>
+          <p className={styles.subtitle}>
+            Monitor, manage, and optimize your agricultural assets with real-time insights and comprehensive control
+          </p>
+        </header>
+
+        <section aria-labelledby="assets-summary" className="mb-12">
+          <h2 id="assets-summary" className="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+            <div className="w-1 h-8 bg-green-500 rounded-full mr-4"></div>
+            Assets Overview
+          </h2>
+          <div className={styles.gridContainer}>
+            {Object.keys(assets).map(category => {
+              const config = categoryConfig[category];
+              const activeCount = assets[category]?.filter(device => device.isActive).length || 0;
+              const totalCount = assets[category]?.length || 0;
+              const statusPercentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
+
+              return (
+                <article key={`summary-${category}`} className={styles.summaryCard}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`${styles.iconWrapper} bg-gradient-to-br from-green-50 to-green-100 border-green-200 border`}>
+                      {config.icon}
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-baseline space-x-1">
+                        <span className="text-3xl font-bold text-green-700">
+                          {activeCount}
+                        </span>
+                        <span className="text-slate-400 text-base font-medium">
+                          /{totalCount}
+                        </span>
+                      </div>
+                      <div className="text-xs font-medium text-green-700 mt-1">
+                        {statusPercentage}% Active
+                      </div>
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">
+                    {config.label}
+                  </h3>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-600 font-medium">
+                      {activeCount} of {totalCount} devices online
+                    </p>
+                    <div className={`w-3 h-3 rounded-full ${activeCount > 0 ? 'bg-green-400' : 'bg-slate-300'} shadow-sm`} 
+                         aria-label={activeCount > 0 ? 'Online' : 'Offline'}></div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-1000 ease-out rounded-full"
+                        style={{ width: `${statusPercentage}%` }}
+                        aria-label={`${statusPercentage}% devices active`}
+                      ></div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         {Object.keys(assets).map(category => {
-          const activeCount = assets[category]?.filter(device => device.isActive).length || 0;
-          const totalCount = assets[category]?.length || 0;
-          const icons = {
-            sensors: '🔧',
-            cameras: '📷',
-            drones: '🚁'
-          };
-          const colors = {
-            sensors: 'blue',
-            cameras: 'green',
-            drones: 'purple'
-          };
-
+          const config = categoryConfig[category];
           return (
-            <div key={category} className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`text-3xl`}>{icons[category]}</div>
-                <div className={`text-right`}>
-                  <span className={`text-2xl font-bold text-${colors[category]}-600`}>{activeCount}</span>
-                  <span className="text-gray-500">/{totalCount}</span>
+            <section key={`details-${category}`} className={styles.detailsCard} aria-labelledby={`${category}-section`}>
+              <header className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+                <h3 id={`${category}-section`} className="text-2xl font-bold text-slate-800 flex items-center">
+                  <div className={`${styles.iconWrapper} bg-gradient-to-br from-green-50 to-green-100 border-green-200 border w-12 h-12 mr-4`}>
+                    {config.icon}
+                  </div>
+                  {config.label}
+                </h3>
+                <button
+                  onClick={() => addDevice(category)}
+                  className={`${styles.button} bg-green-600 text-white hover:bg-green-700 focus:ring-green-500`}
+                  aria-label={`Add new ${category.slice(0, -1)}`}
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add {config.label.split(' ').pop().slice(0, -1)}
+                </button>
+              </header>
+
+              {(assets[category] || []).length === 0 ? (
+                <div className="text-center py-16 px-8">
+                  <div className={`${styles.iconWrapper} bg-gradient-to-br from-green-50 to-green-100 border-green-200 border w-20 h-20 mx-auto mb-6 opacity-50`}>
+                    {config.icon}
+                  </div>
+                  <h4 className="text-xl font-semibold text-slate-700 mb-2">
+                    No {config.label} Added Yet
+                  </h4>
+                  <p className="text-slate-500 mb-6 max-w-md mx-auto leading-relaxed">
+                    Start building your farm's digital infrastructure by adding your first {category.slice(0, -1)}.
+                  </p>
+                  <button
+                    onClick={() => addDevice(category)}
+                    className={`${styles.button} bg-white text-slate-700 border-slate-300 border hover:bg-slate-50 focus:ring-slate-500/50`}
+                    aria-label={`Add new ${category.slice(0, -1)}`}
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Get Started
+                  </button>
                 </div>
-              </div>
-              <h3 className="font-semibold text-gray-800 capitalize mb-2">
-                {category === 'sensors' ? 'IoT Sensors' :
-                 category === 'cameras' ? 'Surveillance Cameras' :
-                 'Agricultural Drones'}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {activeCount} {t.activeDevices}
-              </p>
-            </div>
+              ) : (
+                <div className={styles.gridContainer}>
+                  {assets[category].map(device => (
+                    <DeviceCard
+                      key={device.id}
+                      device={device}
+                      category={category}
+                      onToggleStatus={toggleDeviceStatus}
+                      onRemove={removeDevice}
+                      onUpdateName={updateDeviceName}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
           );
         })}
-      </div>
 
-      {Object.keys(assets).map(category => (
-        <div key={category} className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 capitalize">
-              {category === 'sensors' ? '🔧 IoT Sensors' :
-               category === 'cameras' ? '📷 Surveillance Cameras' :
-               '🚁 Agricultural Drones'}
-            </h3>
-            <button
-              onClick={() => addDevice(category)}
-              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-3xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add {category.slice(0, -1)}
-            </button>
-          </div>
-
-          {(assets[category] || []).length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>No {category} added yet. Click "Add {category.slice(0, -1)}" to get started.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assets[category].map(device => (
-                <DeviceCard
-                  key={device.id}
-                  device={device}
-                  category={category}
-                  onToggleStatus={toggleDeviceStatus}
-                  onRemove={removeDevice}
-                  onUpdateName={updateDeviceName}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-
-      <div className="flex justify-center">
-        <button
-          onClick={saveAssets}
-          className="flex items-center px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-3xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg"
-        >
-          <Save className="w-5 h-5 mr-2" />
-          {t.save} All Assets
-        </button>
+        <footer className="flex justify-center pt-8 border-t border-slate-200">
+          <button
+            onClick={saveAssets}
+            className={`${styles.button} px-12 py-4 bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 text-base font-bold tracking-wide`}
+            aria-label="Save all farm assets configuration"
+          >
+            <Save className="w-6 h-6 mr-3" />
+            Save All Assets Configuration
+          </button>
+        </footer>
       </div>
     </div>
   );
+};
+// --- END: REVISED RENDERSETTINGS FUNCTION ---
 
   const renderFinance = () => {
     const token = localStorage.getItem('token');
@@ -2032,7 +2464,6 @@ const AgriSenseDashboard = () => {
           {renderContent()}
         </main>
         
-        {/* --- ADDED: Render the Modal --- */}
         <PredictionModal 
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
@@ -2040,6 +2471,25 @@ const AgriSenseDashboard = () => {
             data={modalData}
             isLoading={isModelLoading}
         />
+        
+        <PlantDiseaseModal 
+            isOpen={isDiseaseModalOpen}
+            onClose={() => setIsDiseaseModalOpen(false)}
+        />
+
+        <div className="fixed bottom-8 right-8 z-40 flex flex-col gap-4">
+           <button
+            onClick={() => setIsDiseaseModalOpen(true)}
+            className="bg-green-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-green-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-400/50"
+            aria-label="Open Plant Disease Detection"
+            title="Plant Disease Detection"
+          >
+            <div className="relative w-8 h-8">
+                <Leaf className="w-6 h-6 absolute top-0 left-0" />
+                <Camera className="w-5 h-5 absolute bottom-0 right-0 bg-green-700 rounded-full p-0.5" />
+            </div>
+          </button>
+        </div>
 
         <div className="fixed bottom-8 right-8 z-40">
           <button
@@ -2088,7 +2538,6 @@ const AgriSenseDashboard = () => {
         .text-purple-600 { color: #7c3aed; }
         .text-yellow-600 { color: #ca8a04; }
         
-        /* Simple prose styles for markdown content in modal */
         .prose {
           color: #374151;
           line-height: 1.6;
