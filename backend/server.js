@@ -38,36 +38,39 @@ const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 const WEATHER_API = process.env.WEATHERAPI_COM_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const PYTHON_API_URL = process.env.AI_SERVICE_URL;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // <-- NEW: Unsplash API Key
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 
-// *** Use the custom endpoint URL provided by your hackathon organizers ***
 const OPENAI_COMPATIBLE_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions'; 
 const AI_MODEL_NAME = 'openai/gpt-oss-120b:cerebras';
 
+const AGMARKNET_API_KEY = process.env.AGMARKNET_API_KEY;
+const AGMARKNET_BASE_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 // In-memory cache for weather and soil data
 const weatherCache = new Map();
 const soilCache = new Map();
-const CACHE_DURATION = 2 * 60 * 60 * 1000; // Cache for 2 hours
+const CACHE_DURATION = 2 * 60 * 60 * 1000;
 
-// ... (The rest of your utility functions like fetchWithRetry, getCoordinates, etc. remain the same)
-// Retry mechanism for API calls
-const fetchWithRetry = async (url, retries = 3, backoff = 1000) => {
+const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) => {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await axios.get(url, {
+        ...options,
         headers: {
-          'User-Agent': 'AgriSense/1.0'
+          'User-Agent': 'AgriSense/1.0',
+          'Accept': 'application/json'
         }
       });
+      console.log('Agmarknet API response:', response.data); // Debug log
       return response;
     } catch (err) {
+      console.error('Agmarknet API error:', err.message, err.response?.data);
       if (err.response?.status === 429 && i < retries - 1) {
         const delay = backoff * Math.pow(2, i);
         console.warn(`Rate limit hit, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      throw err;
+      throw new Error(err.response?.data?.error || err.message || 'Failed to fetch from Agmarknet API');
     }
   }
 };
@@ -92,12 +95,13 @@ const getCoordinates = async (locationQuery) => {
   }
 };
 
+
 // MongoDB connection
 mongoose.connect(Mongo)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// ... (All your Mongoose schemas remain the same)
+// ... (Mongoose schemas remain the same)
 // Device schema for tracking cameras and sensors
 const deviceSchema = new mongoose.Schema({
   deviceId: { type: String, required: true, unique: true },
@@ -203,7 +207,7 @@ const soilDataSchema = new mongoose.Schema({
 
 const SoilData = mongoose.model('SoilData', soilDataSchema);
 
-// ... (All other functions and endpoints up to the finance advice endpoint remain the same)
+// ... (authMiddleware and other helpers remain the same)
 // Middleware: verify token
 const authMiddleware = (roles = []) => {
   return (req, res, next) => {
@@ -289,6 +293,7 @@ const sanitizeAssetData = (assets) => {
   };
 };
 
+// ... (signup and login endpoints remain the same)
 // SIGNUP
 app.post('/farmer/signup', async (req, res) => {
   try {
@@ -395,9 +400,80 @@ app.post('/farmer/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ... (all other endpoints up to finance-advice remain the same)
 // ===============================================
 // AI MODEL INTEGRATION ENDPOINTS
 // ===============================================
+app.get('/farmer/crop-prices', authMiddleware(["farmer", "admin"]), async (req, res) => {
+  try {
+    const {
+      state,
+      district,
+      market,
+      commodity,
+      variety,
+      grade,
+      limit = 10,
+      offset = 0
+    } = req.query;
+
+    // Fetch farmer data to personalize
+    const farmer = await Farmer.findOne({ farmerId: req.farmer.farmerId }).select('state');
+    let effectiveState = state || farmer?.state || 'Karnataka';
+
+    // Build query params, skip empty filters
+    const params = new URLSearchParams({
+      'api-key': AGMARKNET_API_KEY,
+      format: 'json',
+      offset: offset.toString(),
+      limit: limit.toString()
+    });
+
+    if (effectiveState) params.append('filters[state.keyword]', effectiveState.trim());
+    if (district && district.trim()) params.append('filters[district]', district.trim());
+    if (market && market.trim()) params.append('filters[market]', market.trim());
+    if (commodity && commodity.trim()) params.append('filters[commodity]', commodity.trim());
+    if (variety && variety.trim()) params.append('filters[variety]', variety.trim());
+    if (grade && line.trim()) params.append('filters[grade]', grade.trim());
+
+    const apiUrl = `${AGMARKNET_BASE_URL}?${params.toString()}`;
+    console.log('Requesting Agmarknet API:', apiUrl);
+
+    const response = await fetchWithRetry(apiUrl);
+
+    if (!response.data || !Array.isArray(response.data.records)) {
+      throw new Error('Invalid response from Agmarknet API: No records found');
+    }
+
+    const enhancedData = {
+      records: response.data.records.slice(0, parseInt(limit)),
+      totalRecords: response.data.total || response.data.records.length,
+      personalized: !!effectiveState && !state,
+      farmerState: effectiveState,
+      filtersUsed: {
+        state: effectiveState || null,
+        district: district || null,
+        market: market || null,
+        commodity: commodity || null,
+        variety: variety || null,
+        grade: grade || null,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    };
+
+    res.status(200).json({
+      message: "Crop prices fetched successfully",
+      data: enhancedData
+    });
+  } catch (err) {
+    console.error('Crop prices endpoint error:', err.message, err.response?.data);
+    res.status(400).json({
+      error: err.message || 'Failed to fetch crop prices'
+    });
+  }
+});
 
 // Get Crop Recommendation from Python API
 app.post('/farmer/recommend-crop', authMiddleware(["farmer"]), async (req, res) => {
@@ -897,9 +973,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
   }
 });
 
-// DEVICE MANAGEMENT ENDPOINTS (Legacy - keeping for backward compatibility)
-
-// *** UPDATED: /farmer/chat using OpenAI-compatible chat completions (like runmodel.py) ***
+// *** UPDATED: /farmer/chat using OpenAI-compatible chat completions ***
 app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { text } = req.body;
@@ -929,13 +1003,12 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
       User's question is: "${text}"
     `;
 
-    // Make the API call using OpenAI-compatible format
     const hfResponse = await axios.post(
       OPENAI_COMPATIBLE_ENDPOINT,
       {
         model: AI_MODEL_NAME,
         messages: [
-          { role: "system", content: "You are a helpful agricultural AI assistant." }, // System prompt for better behavior
+          { role: "system", content: "You are a helpful agricultural AI assistant." },
           { role: "user", content: context }
         ],
         temperature: 0.7,
@@ -945,9 +1018,9 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
         headers: {
           'Authorization': `Bearer ${HF_TOKEN}`,
           'Content-Type': 'application/json',
-          'Accept-Encoding': 'identity', // FIX: Request uncompressed response
+          'Accept-Encoding': 'identity',
         },
-        timeout: 30000 // Increased timeout to 30 seconds for stability
+        timeout: 30000
       }
     );
 
@@ -958,7 +1031,6 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
   } catch (error) {
     console.error('Chat endpoint error:', error.message);
     if (error.response) {
-      // Detailed logging for debugging
       console.error(`Status: ${error.response.status}`, error.response.data);
       return res.status(error.response.status || 503).json({ error: error.response.data.error || 'AI service error' });
     } else {
@@ -967,11 +1039,10 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
   }
 });
 
-// NEW: Helper function to fetch an image from Unsplash
+// Helper function to fetch an image from Unsplash
 const fetchImageForAdvice = async (category) => {
     if (!UNSPLASH_ACCESS_KEY) {
         console.warn("UNSPLASH_ACCESS_KEY not found. Using fallback image.");
-        // A high-quality, generic fallback image from Unsplash source
         return `https://source.unsplash.com/800x600/?${encodeURIComponent(category)},agriculture`;
     }
     
@@ -991,14 +1062,14 @@ const fetchImageForAdvice = async (category) => {
         });
 
         if (response.data.results && response.data.results.length > 0) {
-            return response.data.results[0].urls.small; // Use 'small' for better performance
+            return response.data.results[0].urls.small;
         } else {
             console.warn(`No Unsplash image found for query: "${query}". Using fallback.`);
-            return fallbackUrl; // Fallback if no specific image is found
+            return fallbackUrl;
         }
     } catch (error) {
         console.error('Unsplash API error:', error.message);
-        return fallbackUrl; // Fallback on API error
+        return fallbackUrl;
     }
 };
 
@@ -1032,14 +1103,13 @@ app.post('/farmer/finance-advice', authMiddleware(["farmer", "admin"]), async (r
         headers: {
           'Authorization': `Bearer ${HF_TOKEN}`,
           'Content-Type': 'application/json',
-          'Accept-Encoding': 'identity', // FIX: Request uncompressed response
+          'Accept-Encoding': 'identity',
         },
         timeout: 45000 
       }
     );
     
     let adviceText = hfResponse.data.choices[0].message.content.trim();
-    // Clean the response: find the start of the JSON array '[' and end ']'
     const startIndex = adviceText.indexOf('[');
     const endIndex = adviceText.lastIndexOf(']');
     if (startIndex === -1 || endIndex === -1) {
@@ -1058,7 +1128,6 @@ app.post('/farmer/finance-advice', authMiddleware(["farmer", "admin"]), async (r
       return res.status(500).json({ error: "AI returned an invalid format. Could not parse advice." });
     }
     
-    // NEW: Fetch images from Unsplash for each piece of advice
     const adviceWithImages = await Promise.all(
       adviceJson.map(async (advice) => {
           const imageUrl = await fetchImageForAdvice(advice.category);
@@ -1080,7 +1149,43 @@ app.post('/farmer/finance-advice', authMiddleware(["farmer", "admin"]), async (r
 });
 
 
-// ... (All other endpoints like device management, profile, etc. remain the same)
+// --- NEW: Plant Disease Detection Proxy Endpoint ---
+app.post('/farmer/detect-disease', authMiddleware(["farmer"]), upload.single('image'), async (req, res) => {
+    if (!PYTHON_API_URL) {
+        return res.status(503).json({ error: "AI Model service is not configured on the server." });
+    }
+    if (!req.file) {
+        return res.status(400).json({ error: 'No image file uploaded.' });
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', req.file.buffer, { filename: req.file.originalname });
+
+        const diseaseResponse = await axios.post(
+            `${PYTHON_API_URL}/m2/plant-disease`,
+            formData,
+            {
+                headers: {
+                    ...formData.getHeaders()
+                }
+            }
+        );
+
+        res.status(200).json(diseaseResponse.data);
+
+    } catch (error) {
+        console.error('Plant disease detection error:', error.message);
+        if (error.response) {
+            console.error(`Status: ${error.response.status}`, error.response.data);
+            return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
+        }
+        res.status(503).json({ error: 'AI Model service is unavailable.' });
+    }
+});
+
+
+// ... (The rest of your endpoints and app.listen remain the same)
 // Get all devices for a farmer
 app.get('/farmer/devices', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
@@ -1359,7 +1464,7 @@ app.get('/admin/devices', authMiddleware(["admin"]), async (req, res) => {
   }
 });
 
-// Start server
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Secure Server with Weather & Soil Sync running on http://localhost:${PORT}`);
