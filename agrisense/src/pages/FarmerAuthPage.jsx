@@ -35,6 +35,8 @@ const indianStates = [
   "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
+const API_URL = process.env.VITE_BACK_URI;
+
 const FarmerAuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -281,7 +283,7 @@ const FarmerAuthPage = () => {
             rainfall: formData.rainfall ? Number(formData.rainfall) : undefined,
           };
 
-      const response = await fetch(`https://agrisense-hackproject.onrender.com${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

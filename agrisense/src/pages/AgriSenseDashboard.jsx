@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 // --- Configuration ---
-const API_URL = 'https://agrisense-hackproject.onrender.com';
+const API_URL = process.env.VITE_BACK_URI;
 
 // --- Language Data ---
 const supportedLanguages = [
