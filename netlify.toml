@@ -7,3 +7,5 @@
   from = "/*"
   to = "/index.html"
   status = 200
+[secrets_scan]
+  omit_keys = ["VITE_BACK_URI"]
