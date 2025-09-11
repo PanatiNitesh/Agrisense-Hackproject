@@ -1,8 +1,14 @@
 # 🌾 AgriSense - AI-Powered Smart Farming Platform
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4dd9ff9d-1c21-4ab2-acc7-b0336b402496" alt="Image" height="700" width="900"  />
+</p>
+
+
 **Empowering farmers with intelligent crop recommendations and data-driven agricultural insights**
 
 AgriSense is a comprehensive smart farming platform that leverages artificial intelligence to provide personalized crop recommendations, yield predictions, weather analysis, and agricultural guidance to farmers. Built for the **OpenAI Open Model Hackathon**, this project combines modern web technologies with machine learning to revolutionize farming decisions.
+
 
 ---
 
@@ -24,18 +30,9 @@ AgriSense is a comprehensive smart farming platform that leverages artificial in
 
 AgriSense follows a modern microservices architecture with three main components:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│                 │    │                 │    │                 │
-│    Frontend     │    │     Backend     │    │   LLM-Model     │
-│   (agrisense)   │◄──►│   (Node.js)     │◄──►│   (Python)      │
-│                 │    │                 │    │                 │
-│   React.js      │    │   Express.js    │    │   FastAPI       │
-│   Tailwind CSS  │    │   MongoDB       │    │   ML Models     │
-│   Vite          │    │   JWT Auth      │    │   HuggingFace   │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f03197b1-8025-400c-8f12-8caa73293ce3" alt="Image" height="700" width="900"  />
+</p>
 
 ### Component Breakdown:
 
@@ -238,33 +235,13 @@ We're grateful to the amazing team that made AgriSense possible:
 
 <div align="center">
 
-| # | Contributor | Role | GitHub Profile |
-|---|------------|------|----------------|
-| 1 | **Ravindra** | Full Stack Developer & AI Integration | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ravindraogg) |
-| 2 | **Nitesh Panati** | Project Lead & Backend Architecture | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/PanatiNitesh) |
-| 3 | **Pooja CG** | Frontend Development & UI/UX Design | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Pooja-CG) |
+| # | Avatar | Contributor | Role | GitHub Profile |
+|---|--------|------------|------|----------------|
+| 1 | <img src="https://avatars.githubusercontent.com/u/149950829?v=4" width="60" height="60" style="border-radius: 50%;"> | **Ravindra** | Full Stack Developer & AI Integration | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ravindraogg) |
+| 2 | <img src="https://avatars.githubusercontent.com/u/134051960?v=4" width="60" height="60" style="border-radius: 50%;"> | **Nitesh Panati** | Project Lead & Backend Architecture | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/PanatiNitesh) |
+| 3 | <img src="https://avatars.githubusercontent.com/u/144938646?v=4" width="60" height="60" style="border-radius: 50%;"> | **Pooja CG** | Frontend Development & UI/UX Design | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Pooja-CG) |
 
 </div>
-
-### Team Contributions
-
-#### 🔧 **Ravindra** - [@ravindraogg](https://github.com/ravindraogg)
-- AI/ML model integration and optimization
-- Python FastAPI service development
-- Machine learning algorithms for crop prediction
-- Plant disease detection system implementation
-
-#### 🎯 **Nitesh Panati** - [@PanatiNitesh](https://github.com/PanatiNitesh)
-- Project architecture and technical leadership
-- Backend API development with Node.js/Express
-- Database design and MongoDB integration
-- Authentication and security implementation
-
-#### 🎨 **Pooja CG** - [@Pooja-CG](https://github.com/Pooja-CG)
-- Frontend React.js application development
-- User interface and user experience design
-- Responsive design with Tailwind CSS
-- Component architecture and state management
 
 ---
 
