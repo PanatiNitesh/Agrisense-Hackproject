@@ -31,94 +31,234 @@ const translations = {
     // Dashboard sections
     overview: 'Overview',
     crops: 'Crop Analysis',
-    soil: 'Soil Health', 
+    soil: 'Soil Health',
     weather: 'Weather',
     analytics: 'Analytics',
     assets: 'Assets',
     finance: 'Finance & Education',
     profile: 'Profile',
-    
+
     // Overview section
     welcomeBack: 'Welcome back',
-    farmStatus: 'Here is your farm\'s live status in',
+    farmStatus: "Here is your farm's live status in",
     primaryCrop: 'Primary Crop',
     farmArea: 'Farm Area',
     currentTemp: 'Current Temp',
     currentHumidity: 'Current Humidity',
     activeDevices: 'active devices',
     yieldComparison: 'Yield Comparison (Quintal/Hectare)',
-    topCropRecommendations: 'Top 5 Crop Recommendations',
+    topCropRecommendations: 'Top 3 Crop Recommendations',
     yieldPrediction: 'Yield Prediction',
     recommendCrop: 'Recommend Crop',
+
+    // Crops section
+    cropSuitabilityAnalysis: 'Crop Suitability Analysis',
+    suitability: 'Suitability',
+
+    // Soil section
+    soilNutrientAnalysis: 'Soil Nutrient Analysis',
+    overallSoilHealth: 'Overall Soil Health (%)',
+    recommendations: 'Recommendations',
+    nitrogen: 'Nitrogen (N)',
+    phosphorus: 'Phosphorus (P)',
+    potassium: 'Potassium (K)',
+    acidity: 'Acidity (pH)',
+    moisture: 'Moisture',
+    rainfall: 'Rainfall',
+
+    // Weather section
+    weatherHistory: '5-Day Weather History',
+    tempAndRain: 'Temperature & Rainfall',
+
+    // Analytics section
+    advancedAnalytics: 'Advanced Analytics',
+    profitabilityVsSuitability: 'Profitability vs. Suitability Analysis',
+
+    // Assets section
+    assetsOverview: 'Assets Overview',
+    iotSensors: 'IoT Sensors',
+    surveillanceCameras: 'Surveillance Cameras',
+    agriculturalDrones: 'Agricultural Drones',
+    addSensor: 'Add Sensor',
+    addCamera: 'Add Camera',
+    addDrone: 'Add Drone',
+    saveAssetsConfig: 'Save All Assets Configuration',
+    devicesOnline: 'devices online',
+    noAssetsAdded: 'No {assetType} Added Yet',
+    getStarted: 'Get Started',
+    assetTypeSensor: 'sensors',
+    assetTypeCamera: 'cameras',
+    assetTypeDrone: 'drones',
     
     // Finance section
     financeTitle: 'Farmer Finance & Education',
     financeSubtitle: 'Learn about farming practices, financial planning, and get expert advice',
     askQuestion: 'Ask a farming question...',
     send: 'Send',
-    
+    learningTitle: 'Farmer Learning Hub',
+    marketPricesTitle: 'Live Market Prices',
+
+    // Profile section
+    farmerProfile: 'Farmer Profile',
+    saveChanges: 'Save Changes',
+    editProfile: 'Edit Profile',
+    personalInfo: 'Personal Information',
+    farmerId: 'Farmer ID',
+    fullName: 'Full Name',
+    email: 'Email',
+    state: 'State',
+    district: 'District',
+    farmSoilDetails: 'Farm & Soil Details',
+    season: 'Season',
+    year: 'Year',
+    areaHectare: 'Area (Hectare)',
+    currentLocation: 'Current Location',
+    location: 'Location',
+    gpsCoordinates: 'GPS Coordinates',
+    refreshLocation: 'Refresh Location',
+    manualLocationInput: 'Manual Location Input',
+    manualLocationHelp: 'Enter your location manually if automatic detection fails.',
+    city: 'City',
+    saveLocation: 'Save Location',
+    updating: 'Updating...',
+
     // Common terms
     loading: 'Loading...',
     noData: 'No data available to display',
     active: 'Active',
     inactive: 'Inactive',
     lastUpdated: 'Last updated',
-    
+
     // Actions
     addDevice: 'Add Device',
     addAsset: 'Add Asset',
     refresh: 'Refresh',
     save: 'Save',
     edit: 'Edit',
-    delete: 'Delete'
+    delete: 'Delete',
+    
+    // Modals
+    close: 'Close',
+    cancel: 'Cancel',
+    plantDiseaseDetection: 'Plant Disease Detection',
+    detectDisease: 'Detect Disease',
   },
-  
   hi: {
     // Dashboard sections
     overview: 'सिंहावलोकन',
     crops: 'फसल विश्लेषण',
-    soil: 'मिट्टी की सेहत',
+    soil: 'मिट्टी का स्वास्थ्य',
     weather: 'मौसम',
     analytics: 'विश्लेषण',
-    assets: 'संपत्ति',
+    assets: 'उपकरण',
     finance: 'वित्त और शिक्षा',
     profile: 'प्रोफ़ाइल',
-    
+
     // Overview section
     welcomeBack: 'आपका स्वागत है',
-    farmStatus: 'में आपके खेत की स्थिति यहाँ है',
+    farmStatus: 'में आपके खेत की लाइव स्थिति यहाँ है',
     primaryCrop: 'मुख्य फसल',
     farmArea: 'खेत का क्षेत्रफल',
     currentTemp: 'वर्तमान तापमान',
     currentHumidity: 'वर्तमान आर्द्रता',
     activeDevices: 'सक्रिय उपकरण',
     yieldComparison: 'उपज तुलना (क्विंटल/हेक्टेयर)',
-    topCropRecommendations: 'शीर्ष 5 फसल सिफारिशें',
+    topCropRecommendations: 'शीर्ष 3 फसल सिफारिशें',
     yieldPrediction: 'उपज पूर्वानुमान',
-    recommendCrop: 'फसल सुझाएं',
-    
+    recommendCrop: 'फसल की सिफारिश करें',
+
+    // Crops section
+    cropSuitabilityAnalysis: 'फसल उपयुक्तता विश्लेषण',
+    suitability: 'उपयुक्तता',
+
+    // Soil section
+    soilNutrientAnalysis: 'मृदा पोषक तत्व विश्लेषण',
+    overallSoilHealth: 'समग्र मृदा स्वास्थ्य (%)',
+    recommendations: 'सिफारिशें',
+    nitrogen: 'नाइट्रोजन (N)',
+    phosphorus: 'फास्फोरस (P)',
+    potassium: 'पोटेशियम (K)',
+    acidity: 'अम्लता (pH)',
+    moisture: 'नमी',
+    rainfall: 'वर्षा',
+
+    // Weather section
+    weatherHistory: '5-दिन का मौसम इतिहास',
+    tempAndRain: 'तापमान और वर्षा',
+
+    // Analytics section
+    advancedAnalytics: 'उन्नत विश्लेषण',
+    profitabilityVsSuitability: 'लाभप्रदता बनाम उपयुक्तता विश्लेषण',
+
+    // Assets section
+    assetsOverview: 'उपकरण अवलोकन',
+    iotSensors: 'IoT सेंसर',
+    surveillanceCameras: 'निगरानी कैमरे',
+    agriculturalDrones: 'कृषि ड्रोन',
+    addSensor: 'सेंसर जोड़ें',
+    addCamera: 'कैमरा जोड़ें',
+    addDrone: 'ड्रोन जोड़ें',
+    saveAssetsConfig: 'सभी उपकरण कॉन्फ़िगरेशन सहेजें',
+    devicesOnline: 'उपकरण ऑनलाइन हैं',
+    noAssetsAdded: 'अभी तक कोई {assetType} नहीं जोड़ा गया है',
+    getStarted: 'शुरू करें',
+    assetTypeSensor: 'सेंसर',
+    assetTypeCamera: 'कैमरे',
+    assetTypeDrone: 'ड्रोन',
+
     // Finance section
-    financeTitle: 'खेती वित्त और शिक्षा',
+    financeTitle: 'किसान वित्त और शिक्षा',
     financeSubtitle: 'खेती की प्रथाओं, वित्तीय योजना के बारे में जानें और विशेषज्ञ सलाह प्राप्त करें',
     askQuestion: 'खेती संबंधी प्रश्न पूछें...',
     send: 'भेजें',
+    learningTitle: 'किसान लर्निंग हब',
+    marketPricesTitle: 'लाइव बाजार मूल्य',
+
+    // Profile section
+    farmerProfile: 'किसान प्रोफ़ाइल',
+    saveChanges: 'बदलाव सहेजें',
+    editProfile: 'प्रोफ़ाइल संपादित करें',
+    personalInfo: 'व्यक्तिगत जानकारी',
+    farmerId: 'किसान आईडी',
+    fullName: 'पूरा नाम',
+    email: 'ईमेल',
+    state: 'राज्य',
+    district: 'जिला',
+    farmSoilDetails: 'खेत और मिट्टी का विवरण',
+    season: 'मौसम',
+    year: 'वर्ष',
+    areaHectare: 'क्षेत्र (हेक्टेयर)',
+    currentLocation: 'वर्तमान स्थान',
+    location: 'स्थान',
+    gpsCoordinates: 'जीपीएस COORDINATES',
+    refreshLocation: 'स्थान रीफ्रेश करें',
+    manualLocationInput: 'मैनुअल स्थान इनपुट',
+    manualLocationHelp: 'यदि स्वचालित पहचान विफल हो जाती है तो अपना स्थान मैन्युअल रूप से दर्ज करें।',
+    city: 'शहर',
+    saveLocation: 'स्थान सहेजें',
+    updating: 'अपडेट हो रहा है...',
     
     // Common terms
     loading: 'लोड हो रहा है...',
-    noData: 'प्रदर्शित करने के लिए कोई डेटा उपलब्ध नहीं',
+    noData: 'प्रदर्शित करने के लिए कोई डेटा उपलब्ध नहीं है',
     active: 'सक्रिय',
     inactive: 'निष्क्रिय',
     lastUpdated: 'अंतिम बार अपडेट किया गया',
-    
+
     // Actions
     addDevice: 'उपकरण जोड़ें',
     addAsset: 'संपत्ति जोड़ें',
     refresh: 'रीफ्रेश करें',
-    save: 'सेव करें',
+    save: 'सहेजें',
     edit: 'संपादित करें',
-    delete: 'हटाएं'
+    delete: 'हटाएं',
+
+    // Modals
+    close: 'बंद करें',
+    cancel: 'रद्द करें',
+    plantDiseaseDetection: 'पौधों में रोग का पता लगाना',
+    detectDisease: 'रोग का पता लगाएं',
   },
-  
   kn: {
     // Dashboard sections
     overview: 'ಅವಲೋಕನ',
@@ -129,42 +269,114 @@ const translations = {
     assets: 'ಆಸ್ತಿಗಳು',
     finance: 'ಹಣಕಾಸು ಮತ್ತು ಶಿಕ್ಷಣ',
     profile: 'ಪ್ರೊಫೈಲ್',
-    
+
     // Overview section
-    welcomeBack: 'ಮರಳಿ ಬಂದಿರುವುದಕ್ಕೆ ಸ್ವಾಗತ',
-    farmStatus: 'ನಲ್ಲಿ ನಿಮ್ಮ ತೋಟದ ಪ್ರಸ್ತುತ ಸ್ಥಿತಿ ಇಲ್ಲಿದೆ',
+    welcomeBack: 'ಮರಳಿ ಸ್ವಾಗತ',
+    farmStatus: 'ನಲ್ಲಿ ನಿಮ್ಮ ಜಮೀನಿನ ನೇರ ಸ್ಥಿತಿ ಇಲ್ಲಿದೆ',
     primaryCrop: 'ಮುಖ್ಯ ಬೆಳೆ',
-    farmArea: 'ತೋಟದ ವಿಸ್ತೀರ್ಣ',
+    farmArea: 'ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ',
     currentTemp: 'ಪ್ರಸ್ತುತ ತಾಪಮಾನ',
-    currentHumidity: 'ಪ್ರಸ್ತುತ ಆರ್ದ್ರತೆ',
+    currentHumidity: 'ಪ್ರಸ್ತುತ ತೇವಾಂಶ',
     activeDevices: 'ಸಕ್ರಿಯ ಸಾಧನಗಳು',
     yieldComparison: 'ಇಳುವರಿ ಹೋಲಿಕೆ (ಕ್ವಿಂಟಾಲ್/ಹೆಕ್ಟೇರ್)',
-    topCropRecommendations: 'ಟಾಪ್ 5 ಬೆಳೆ ಶಿಫಾರಸುಗಳು',
+    topCropRecommendations: 'ಟಾಪ್ 3 ಬೆಳೆ ಶಿಫಾರಸುಗಳು',
     yieldPrediction: 'ಇಳುವರಿ ಮುನ್ಸೂಚನೆ',
-    recommendCrop: 'ಬೆಳೆ ಶಿಫಾರಸು',
-    
+    recommendCrop: 'ಬೆಳೆ ಶಿಫಾರಸು ಮಾಡಿ',
+
+    // Crops section
+    cropSuitabilityAnalysis: 'ಬೆಳೆ ಸೂಕ್ತತೆ ವಿಶ್ಲೇಷಣೆ',
+    suitability: 'ಸೂಕ್ತತೆ',
+
+    // Soil section
+    soilNutrientAnalysis: 'ಮಣ್ಣಿನ ಪೋಷಕಾಂಶಗಳ ವಿಶ್ಲೇಷಣೆ',
+    overallSoilHealth: 'ಒಟ್ಟಾರೆ ಮಣ್ಣಿನ ಆರೋಗ್ಯ (%)',
+    recommendations: 'ಶಿಫಾರಸುಗಳು',
+    nitrogen: 'ಸಾರಜನಕ (N)',
+    phosphorus: 'ರಂಜಕ (P)',
+    potassium: 'ಪೊಟ್ಯಾಸಿಯಮ್ (K)',
+    acidity: 'ಆಮ್ಲೀಯತೆ (pH)',
+    moisture: 'ತೇವಾಂಶ',
+    rainfall: 'ಮಳೆ',
+
+    // Weather section
+    weatherHistory: '5-ದಿನದ ಹವಾಮಾನ ಇತಿಹಾಸ',
+    tempAndRain: 'ತಾಪಮಾನ ಮತ್ತು ಮಳೆ',
+
+    // Analytics section
+    advancedAnalytics: 'ಸುಧಾರಿತ ವಿಶ್ಲೇಷಣೆ',
+    profitabilityVsSuitability: 'ಲಾಭದಾಯಕತೆ vs ಸೂಕ್ತತೆ ವಿಶ್ಲೇಷಣೆ',
+
+    // Assets section
+    assetsOverview: 'ಆಸ್ತಿಗಳ ಅವಲೋಕನ',
+    iotSensors: 'IoT ಸಂವೇದಕಗಳು',
+    surveillanceCameras: 'ಕಣ್ಗಾವಲು ಕ್ಯಾಮೆರಾಗಳು',
+    agriculturalDrones: 'ಕೃಷಿ ಡ್ರೋನ್‌ಗಳು',
+    addSensor: 'ಸಂವೇದಕ ಸೇರಿಸಿ',
+    addCamera: 'ಕ್ಯಾಮೆರಾ ಸೇರಿಸಿ',
+    addDrone: 'ಡ್ರೋನ್ ಸೇರಿಸಿ',
+    saveAssetsConfig: 'ಎಲ್ಲಾ ಆಸ್ತಿಗಳ ಸಂರಚನೆಯನ್ನು ಉಳಿಸಿ',
+    devicesOnline: 'ಸಾಧನಗಳು ಆನ್‌ಲೈನ್‌ನಲ್ಲಿವೆ',
+    noAssetsAdded: 'ಯಾವುದೇ {assetType} ಇನ್ನೂ ಸೇರಿಸಲಾಗಿಲ್ಲ',
+    getStarted: 'ಪ್ರಾರಂಭಿಸಿ',
+    assetTypeSensor: 'ಸಂವೇದಕಗಳು',
+    assetTypeCamera: 'ಕ್ಯಾಮೆರಾಗಳು',
+    assetTypeDrone: 'ಡ್ರೋನ್‌ಗಳು',
+
     // Finance section
-    financeTitle: 'ಕೃಷಿ ಹಣಕಾಸು ಮತ್ತು ಶಿಕ್ಷಣ',
-    financeSubtitle: 'ಕೃಷಿ ಪದ್ಧತಿಗಳು, ಹಣಕಾಸು ಯೋಜನೆ ಬಗ್ಗೆ ಕಲಿಯಿರಿ ಮತ್ತು ತಜ್ಞರ ಸಲಹೆ ಪಡೆಯಿರಿ',
+    financeTitle: 'ರೈತರ ಹಣಕಾಸು ಮತ್ತು ಶಿಕ್ಷಣ',
+    financeSubtitle: 'ಬೇಸಾಯ ಪದ್ಧತಿಗಳು, ಹಣಕಾಸು ಯೋಜನೆ ಬಗ್ಗೆ ತಿಳಿಯಿರಿ ಮತ್ತು ತಜ್ಞರ ಸಲಹೆ ಪಡೆಯಿರಿ',
     askQuestion: 'ಕೃಷಿ ಪ್ರಶ್ನೆ ಕೇಳಿ...',
     send: 'ಕಳುಹಿಸಿ',
-    
+    learningTitle: 'ರೈತರ ಕಲಿಕಾ ಕೇಂದ್ರ',
+    marketPricesTitle: 'ನೇರ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳು',
+
+    // Profile section
+    farmerProfile: 'ರೈತರ ಪ್ರೊಫೈಲ್',
+    saveChanges: 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ',
+    editProfile: 'ಪ್ರೊಫೈಲ್ ಸಂಪಾದಿಸಿ',
+    personalInfo: 'ವೈಯಕ್ತಿಕ ಮಾಹಿತಿ',
+    farmerId: 'ರೈತ ಐಡಿ',
+    fullName: 'ಪೂರ್ಣ ಹೆಸರು',
+    email: 'ಇಮೇಲ್',
+    state: 'ರಾಜ್ಯ',
+    district: 'ಜಿಲ್ಲೆ',
+    farmSoilDetails: 'ಜಮೀನು ಮತ್ತು ಮಣ್ಣಿನ ವಿವರಗಳು',
+    season: 'ಋತು',
+    year: 'ವರ್ಷ',
+    areaHectare: 'ವಿಸ್ತೀರ್ಣ (ಹೆಕ್ಟೇರ್)',
+    currentLocation: 'ಪ್ರಸ್ತುತ ಸ್ಥಳ',
+    location: 'ಸ್ಥಳ',
+    gpsCoordinates: 'ಜಿಪಿಎಸ್ ನಿರ್ದೇಶಾಂಕಗಳು',
+    refreshLocation: 'ಸ್ಥಳವನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ',
+    manualLocationInput: 'ಕೈಯಾರೆ ಸ್ಥಳ ನಮೂದಿಸಿ',
+    manualLocationHelp: 'ಸ್ವಯಂಚಾಲಿತ ಪತ್ತೆ ವಿಫಲವಾದರೆ ನಿಮ್ಮ ಸ್ಥಳವನ್ನು ಕೈಯಾರೆ ನಮೂದಿಸಿ.',
+    city: 'ನಗರ',
+    saveLocation: 'ಸ್ಥಳವನ್ನು ಉಳಿಸಿ',
+    updating: 'ನವೀಕರಿಸಲಾಗುತ್ತಿದೆ...',
+
     // Common terms
     loading: 'ಲೋಡ್ ಆಗುತ್ತಿದೆ...',
     noData: 'ಪ್ರದರ್ಶಿಸಲು ಯಾವುದೇ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ',
     active: 'ಸಕ್ರಿಯ',
     inactive: 'ನಿಷ್ಕ್ರಿಯ',
-    lastUpdated: 'ಕೊನೆಯದಾಗಿ ಅಪ್‌ಡೇಟ್ ಮಾಡಲಾಗಿದೆ',
-    
+    lastUpdated: 'ಕೊನೆಯದಾಗಿ ನವೀಕರಿಸಲಾಗಿದೆ',
+
     // Actions
     addDevice: 'ಸಾಧನ ಸೇರಿಸಿ',
     addAsset: 'ಆಸ್ತಿ ಸೇರಿಸಿ',
     refresh: 'ರಿಫ್ರೆಶ್ ಮಾಡಿ',
-    save: 'ಸೇವ್ ಮಾಡಿ',
+    save: 'ಉಳಿಸಿ',
     edit: 'ಸಂಪಾದಿಸಿ',
-    delete: 'ಅಳಿಸಿ'
+    delete: 'ಅಳಿಸಿ',
+    
+    // Modals
+    close: 'ಮುಚ್ಚಿ',
+    cancel: 'ರದ್ದುಮಾಡಿ',
+    plantDiseaseDetection: 'ಸಸ್ಯ ರೋಗ ಪತ್ತೆ',
+    detectDisease: 'ರೋಗ ಪತ್ತೆ ಮಾಡಿ',
   }
 };
+
 
 // --- API Service ---
 const apiService = {
@@ -306,7 +518,7 @@ const apiService = {
   }
 }
 
-const PlantDiseaseModal = ({ isOpen, onClose }) => {
+const PlantDiseaseModal = ({ isOpen, onClose, t }) => {
   const [imageSrc, setImageSrc] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -440,10 +652,10 @@ const PlantDiseaseModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in p-4" onClick={handleClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center"><ScanLine className="w-6 h-6 mr-2 text-green-600"/>Plant Disease Detection</h2>
+          <h2 className="text-xl font-bold text-gray-800 flex items-center"><ScanLine className="w-6 h-6 mr-2 text-green-600"/>{t.plantDiseaseDetection}</h2>
           <button onClick={handleClose} className="p-2 rounded-full hover:bg-gray-100">
             <X className="w-6 h-6 text-gray-600" />
           </button>
@@ -493,7 +705,7 @@ const PlantDiseaseModal = ({ isOpen, onClose }) => {
                     ) : (
                         <>
                             <BrainCircuit className="w-5 h-5" />
-                            Detect Disease
+                            {t.detectDisease}
                         </>
                     )}
                 </button>
@@ -533,7 +745,7 @@ const LanguageSelector = ({ currentLanguage, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative z-30">
+    <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30 hover:bg-white/30 transition-colors text-white"
@@ -546,7 +758,7 @@ const LanguageSelector = ({ currentLanguage, onLanguageChange }) => {
       </button>
       
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-lg border border-gray-200 min-w-[150px] z-[100]">
+        <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-lg border border-gray-200 min-w-[150px] z-50">
           {supportedLanguages.map((language) => (
             <button
               key={language.code}
@@ -718,13 +930,13 @@ const FinanceEducation = ({ token, language, t, farmerData }) => {
   return (
     <div className="space-y-12">
       {/* Learning Section */}
-      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-4 sm:p-8 border border-white/30 shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
           <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl text-white">
             <BookOpen size={28} />
           </div>
           <div>
-            <h3 className="text-3xl font-bold text-gray-800">{t.learningTitle}</h3>
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-800">{t.learningTitle}</h3>
             <p className="text-gray-600 mt-1">{t.financeSubtitle}</p>
           </div>
         </div>
@@ -754,19 +966,19 @@ const FinanceEducation = ({ token, language, t, farmerData }) => {
       </div>
 
       {/* Market Prices Section */}
-      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-4 sm:p-8 border border-white/30 shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
           <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl text-white">
             <DollarSign size={28} />
           </div>
           <div>
-            <h3 className="text-3xl font-bold text-gray-800">{t.marketPricesTitle}</h3>
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-800">{t.marketPricesTitle}</h3>
             <p className="text-gray-600 mt-1">Real-time crop prices from various markets in India</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <input
             type="text"
             name="state"
@@ -971,7 +1183,7 @@ const ChatErrorScreen = ({ error }) => (
 const GreetingScreen = ({ onVoiceSelect, onChatSelect, lang }) => {
     const farmerName = localStorage.getItem('farmerName') || 'Farmer';
     return (
-      <div className="flex flex-col items-center justify-center text-center animate-fade-in h-full">
+      <div className="flex flex-col items-center justify-center text-center animate-fade-in h-full p-4">
         <h1 className="text-3xl font-bold mb-2 text-white" lang={lang}>Hello, {farmerName}!</h1>
         <p className="text-md text-gray-300 mb-8" lang={lang}>How would you like to get your farm status?</p>
         <div className="flex flex-col sm:flex-row gap-4">
@@ -1320,7 +1532,7 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="min-h-screen flex items-center justify-center bg-red-50 p-4 text-center">
           <AlertTriangle className="w-12 h-12 text-red-500" />
           <div className="ml-4 text-lg font-semibold text-red-700">
             <p>Oops! Something went wrong.</p>
@@ -1334,13 +1546,12 @@ class ErrorBoundary extends React.Component {
 }
 
 // --- Prediction Modal Component ---
-// FIXED: Changed logic to use a `type` prop instead of language-dependent `title`
-const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
+const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type, t }) => {
   if (!isOpen) return null;
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
           <div className="flex flex-col items-center justify-center py-12">
@@ -1351,7 +1562,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             onClick={onClose}
             className="mt-6 w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition-colors"
           >
-            Cancel
+            {t.cancel}
           </button>
         </div>
       </div>
@@ -1360,7 +1571,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
 
   if (data?.error) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
           <div className="bg-red-50 p-4 rounded-xl mb-6">
@@ -1370,7 +1581,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             onClick={onClose}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
           >
-            Close
+            {t.close}
           </button>
         </div>
       </div>
@@ -1379,14 +1590,14 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
 
   if (type === 'yieldPrediction') {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
             <TrendingUp className="w-6 h-6 text-green-600 mr-2" /> {title}
           </h2>
           <div className="text-center p-6 bg-green-50 rounded-2xl border border-green-200">
             <p className="text-lg text-green-800">Predicted Yield</p>
-            <p className="text-6xl font-bold text-green-600 my-2">
+            <p className="text-5xl sm:text-6xl font-bold text-green-600 my-2">
               {data?.predicted_yield_quintal_per_hectare?.toFixed(2) || 'N/A'}
             </p>
             <p className="text-lg text-green-800">Quintal / Hectare</p>
@@ -1395,7 +1606,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             onClick={onClose}
             className="w-full mt-8 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
           >
-            Close
+            {t.close}
           </button>
         </div>
       </div>
@@ -1407,15 +1618,15 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
     const sortedRecs = [...(data?.new_crop_recommendations || [])].sort((a, b) => b.final_score - a.final_score);
 
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center">
             <Leaf className="w-6 h-6 text-green-600 mr-2" /> {title}
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Input Features Used</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Input Features Used</h3>
               <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                 <table className="w-full text-sm">
                   <thead>
@@ -1437,7 +1648,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             </div>
             
             <div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top Crop Recommendations</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Top Crop Recommendations</h3>
               <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                 <table className="w-full text-sm">
                   <thead>
@@ -1472,7 +1683,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
           </div>
           
           <div className="mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
               <BookOpen className="w-5 h-5 text-blue-600 mr-2" /> Advice for Top Recommended Crop
             </h3>
             <div className="bg-blue-50 p-6 rounded-2xl prose prose-sm max-w-none text-gray-700 border border-blue-100 shadow-sm">
@@ -1481,7 +1692,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
           </div>
           
           <div className="mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center">
               <BookOpen className="w-5 h-5 text-green-600 mr-2" /> Advice for Existing Crop
             </h3>
             <div className="bg-green-50 p-6 rounded-2xl prose prose-sm max-w-none text-gray-700 border border-green-100 shadow-sm">
@@ -1489,7 +1700,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             </div>
           </div>
           
-          <div className="text-sm text-gray-500 flex justify-between mb-6">
+          <div className="text-sm text-gray-500 flex flex-col sm:flex-row justify-between mb-6 gap-2">
             <span>Farmer ID: {data?.farmerId || 'N/A'}</span>
             <span>Recommended at: {data?.recommended_at ? new Date(data.recommended_at).toLocaleString() : 'N/A'}</span>
           </div>
@@ -1498,7 +1709,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
             onClick={onClose}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
           >
-            Close
+            {t.close}
           </button>
         </div>
       </div>
@@ -1507,7 +1718,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
 
   // Fallback for any other data type (e.g., if type is not set)
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
              <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
              <div className="p-4 bg-gray-100 rounded-xl text-sm text-gray-800 overflow-x-auto">
@@ -1517,7 +1728,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
                 onClick={onClose}
                 className="w-full mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                Close
+                {t.close}
             </button>
         </div>
     </div>
@@ -1609,28 +1820,28 @@ const SoilHealthSection = ({ token, t }) => {
         return (
             <div className="flex items-center justify-center h-96">
                 <Loader className="w-10 h-10 animate-spin text-blue-600" />
-                <p className="ml-4 text-gray-600">Loading Soil Health Data...</p>
+                <p className="ml-4 text-gray-600">{t.loading}</p>
             </div>
         );
     }
 
     if (error || !soilData) {
         return (
-            <div className="flex flex-col items-center justify-center h-96 bg-red-50/50 rounded-2xl">
+            <div className="flex flex-col items-center justify-center h-96 bg-red-50/50 rounded-2xl p-4 text-center">
                 <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
                 <h4 className="text-xl font-semibold text-red-700">Failed to Load Data</h4>
-                <p className="text-red-600 mt-2">{error || "No soil data available."}</p>
+                <p className="text-red-600 mt-2">{error || t.noData}</p>
             </div>
         );
     }
 
     const soilMetrics = [
-        { label: 'Nitrogen (N)', key: 'N', unit: 'kg/ha', optimalRange: [100, 150] },
-        { label: 'Phosphorus (P)', key: 'P', unit: 'kg/ha', optimalRange: [60, 90] },
-        { label: 'Potassium (K)', key: 'K', unit: 'kg/ha', optimalRange: [70, 100] },
-        { label: 'Acidity (pH)', key: 'ph', unit: '', optimalRange: [6.5, 7.5] },
-        { label: 'Moisture', key: 'soilMoisture', unit: '%', optimalRange: [60, 80] },
-        { label: 'Rainfall', key: 'rainfall', unit: 'mm', optimalRange: [80, 120] },
+        { label: t.nitrogen, key: 'N', unit: 'kg/ha', optimalRange: [100, 150] },
+        { label: t.phosphorus, key: 'P', unit: 'kg/ha', optimalRange: [60, 90] },
+        { label: t.potassium, key: 'K', unit: 'kg/ha', optimalRange: [70, 100] },
+        { label: t.acidity, key: 'ph', unit: '', optimalRange: [6.5, 7.5] },
+        { label: t.moisture, key: 'soilMoisture', unit: '%', optimalRange: [60, 80] },
+        { label: t.rainfall, key: 'rainfall', unit: 'mm', optimalRange: [80, 120] },
     ];
     
     const getRecommendations = () => {
@@ -1657,7 +1868,7 @@ const SoilHealthSection = ({ token, t }) => {
     
     return (
         <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-gray-800">Soil Nutrient Analysis</h2>
+            <h2 className="text-3xl font-bold text-gray-800">{t.soilNutrientAnalysis}</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {soilMetrics.map(metric => (
@@ -1673,19 +1884,19 @@ const SoilHealthSection = ({ token, t }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 <div className="lg:col-span-3 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Overall Soil Health (%)</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-6">{t.overallSoilHealth}</h3>
                     <ResponsiveContainer width="100%" height={350}>
                         <RadarChart data={soilHealthRadar}>
                             <PolarGrid stroke="#e0e4e7" />
-                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 14 }} />
-                            <PolarRadiusAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#4b5563' }} />
+                            <PolarRadiusAxis tick={{ fontSize: 10, fill: '#6b7280' }} domain={[0, 100]} />
                             <Radar name="Current" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2}/>
                             <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
                         </RadarChart>
                     </ResponsiveContainer>
                 </div>
                 <div className="lg:col-span-2 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Recommendations</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">{t.recommendations}</h3>
                     <ul className="space-y-4">
                         {recommendations.map((rec, index) => (
                             <li key={index} className="flex items-start">
@@ -1706,7 +1917,7 @@ const AgriSenseDashboard = () => {
     return localStorage.getItem('preferredLanguage') || 'en';
   });
   const [activeTab, setActiveTab] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1720,7 +1931,6 @@ const AgriSenseDashboard = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [modalData, setModalData] = useState(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  // FIXED: Added modalType state to control modal content rendering
   const [modalType, setModalType] = useState('');
 
   const [assets, setAssets] = useState({
@@ -1952,7 +2162,6 @@ const AgriSenseDashboard = () => {
     }));
   };
 
-  // FIXED: Implemented API call to save assets to MongoDB
   const saveAssets = async () => {
     const token = localStorage.getItem('token');
     if (!token || !farmerData?.farmerId) {
@@ -1978,7 +2187,6 @@ const AgriSenseDashboard = () => {
     showNotification('Profile updated successfully!', 'success');
   };
 
-  // FIXED: Set modalType for conditional rendering
   const handlePredictYield = async () => {
     const token = localStorage.getItem('token');
     setIsModalOpen(true);
@@ -1997,7 +2205,6 @@ const AgriSenseDashboard = () => {
     }
   };
 
-  // FIXED: Set modalType for conditional rendering
   const handleRecommendCrop = async () => {
     const token = localStorage.getItem('token');
     setIsModalOpen(true);
@@ -2027,7 +2234,7 @@ const AgriSenseDashboard = () => {
 
   if (error && !farmerData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-4 text-center">
         <AlertTriangle className="w-16 h-16 text-red-500" />
         <p className="mt-4 text-xl text-red-700">{error}</p>
         <button onClick={fetchData} className="mt-6 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
@@ -2056,13 +2263,14 @@ const AgriSenseDashboard = () => {
 
   const renderOverview = () => (
     <div className="space-y-8">
-      <div className="backdrop-blur-md bg-gradient-to-r from-blue-600/20 to-green-600/20 rounded-3xl p-6 border border-white/30">
+      {/* FIXED: Added relative and z-10 to fix overlapping issue */}
+      <div className="relative z-10 backdrop-blur-md bg-gradient-to-r from-blue-600/20 to-green-600/20 rounded-3xl p-6 border border-white/30">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="mb-4 md:mb-0 flex-grow">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               {t.welcomeBack}, {farmerData?.farmerName || 'User'}! 🌾
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-base sm:text-lg">
               {t.farmStatus} {getDisplayLocation()}.
             </p>
           </div>
@@ -2155,7 +2363,7 @@ const AgriSenseDashboard = () => {
 
   const renderCropAnalysis = () => (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">Crop Suitability Analysis</h2>
+      <h2 className="text-2xl font-bold text-gray-800">{t.cropSuitabilityAnalysis}</h2>
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
         {dashboardData.cropRecommendations && dashboardData.cropRecommendations.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
@@ -2164,7 +2372,7 @@ const AgriSenseDashboard = () => {
                 <XAxis type="number" unit="%" tick={{ fontSize: 12 }} />
                 <YAxis type="category" dataKey="crop" width={100} tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
-                <Bar dataKey="suitability" name="Suitability" fill="#10b981" radius={[0, 12, 12, 0]} />
+                <Bar dataKey="suitability" name={t.suitability} fill="#10b981" radius={[0, 12, 12, 0]} />
             </BarChart>
             </ResponsiveContainer>
         ) : <NoDataPlaceholder height={400} />}
@@ -2179,9 +2387,9 @@ const AgriSenseDashboard = () => {
 
   const renderWeather = () => (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">5-Day Weather History</h2>
+      <h2 className="text-2xl font-bold text-gray-800">{t.weatherHistory}</h2>
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Temperature & Rainfall</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-6">{t.tempAndRain}</h3>
          {dashboardData.weatherData && dashboardData.weatherData.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
             <ComposedChart data={dashboardData.weatherData}>
@@ -2201,9 +2409,9 @@ const AgriSenseDashboard = () => {
 
   const renderAnalytics = () => (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800">Advanced Analytics</h2>
+      <h2 className="text-2xl font-bold text-gray-800">{t.advancedAnalytics}</h2>
       <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Profitability vs. Suitability Analysis</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-6">{t.profitabilityVsSuitability}</h3>
         {dashboardData.cropRecommendations && dashboardData.cropRecommendations.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
             <ScatterChart margin={{ top: 20, right: 30, bottom: 50, left: 30 }}>
@@ -2299,57 +2507,51 @@ const AgriSenseDashboard = () => {
     </div>
   );
 
-// --- MERGED: IMPROVED ASSETS/SETTINGS SECTION ---
 const renderSettings = () => {
-  // Configuration object for asset categories with a unified green theme
   const categoryConfig = {
     sensors: {
       icon: <Router className="w-6 h-6 text-green-700" />,
-      label: 'IoT Sensors',
+      label: t.iotSensors,
+      addLabel: t.addSensor,
+      assetType: t.assetTypeSensor
     },
     cameras: {
       icon: <Camera className="w-6 h-6 text-green-700" />,
-      label: 'Surveillance Cameras',
+      label: t.surveillanceCameras,
+      addLabel: t.addCamera,
+      assetType: t.assetTypeCamera
     },
     drones: {
       icon: <Navigation className="w-6 h-6 text-green-700" />,
-      label: 'Agricultural Drones',
+      label: t.agriculturalDrones,
+      addLabel: t.addDrone,
+      assetType: t.assetTypeDrone
     }
   };
 
-  // Professional component styles with enhanced design system
   const styles = {
-    container: 'min-h-screen bg-slate-50 p-6',
+    container: 'min-h-screen bg-slate-50 p-4 sm:p-6',
     contentWrapper: 'max-w-7xl mx-auto space-y-8',
     headerSection: 'text-center mb-12',
-    mainTitle: 'text-4xl font-bold text-slate-800 tracking-tight mb-4',
-    subtitle: 'text-lg text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed',
+    mainTitle: 'text-3xl sm:text-4xl font-bold text-slate-800 tracking-tight mb-4',
+    subtitle: 'text-base sm:text-lg text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed',
     summaryCard: 'bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 p-5',
-    detailsCard: 'bg-white rounded-lg border border-slate-200 shadow-md p-6',
-    button: 'inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-3 focus:ring-offset-2 active:transform active:scale-95',
-    iconWrapper: 'flex items-center justify-center w-14 h-14 rounded-xl mb-4',
+    detailsCard: 'bg-white rounded-lg border border-slate-200 shadow-md p-4 sm:p-6',
+    button: 'inline-flex items-center justify-center px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-3 focus:ring-offset-2 active:transform active:scale-95',
+    iconWrapper: 'flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl mb-4',
     gridContainer: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
   };
 
-  return (
+   return (
     <div className={styles.container}>
       <div className={styles.contentWrapper}>
-        <header className={styles.headerSection}>
-          <h1 className={styles.mainTitle}>
-            Farm Assets Management System
-          </h1>
-          <p className={styles.subtitle}>
-            Monitor, manage, and optimize your agricultural assets with real-time insights and comprehensive control
-          </p>
-        </header>
-
         <section aria-labelledby="assets-summary" className="mb-12">
           <h2 id="assets-summary" className="text-2xl font-bold text-slate-800 mb-6 flex items-center">
             <div className="w-1 h-8 bg-green-500 rounded-full mr-4"></div>
-            Assets Overview
+            {t.assetsOverview}
           </h2>
           <div className={styles.gridContainer}>
-            {Object.keys(assets).map(category => {
+            {Object.keys(categoryConfig).map(category => {
               const config = categoryConfig[category];
               const activeCount = assets[category]?.filter(device => device.isActive).length || 0;
               const totalCount = assets[category]?.length || 0;
@@ -2371,7 +2573,7 @@ const renderSettings = () => {
                         </span>
                       </div>
                       <div className="text-xs font-medium text-green-700 mt-1">
-                        {statusPercentage}% Active
+                        {statusPercentage}% {t.active}
                       </div>
                     </div>
                   </div>
@@ -2380,7 +2582,7 @@ const renderSettings = () => {
                   </h3>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-600 font-medium">
-                      {activeCount} of {totalCount} devices online
+                      {activeCount} of {totalCount} {t.devicesOnline}
                     </p>
                     <div className={`w-3 h-3 rounded-full ${activeCount > 0 ? 'bg-green-400' : 'bg-slate-300'} shadow-sm`} 
                          aria-label={activeCount > 0 ? 'Online' : 'Offline'}></div>
@@ -2400,24 +2602,24 @@ const renderSettings = () => {
           </div>
         </section>
 
-        {Object.keys(assets).map(category => {
+        {Object.keys(categoryConfig).map(category => {
           const config = categoryConfig[category];
           return (
             <section key={`details-${category}`} className={styles.detailsCard} aria-labelledby={`${category}-section`}>
-              <header className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-                <h3 id={`${category}-section`} className="text-2xl font-bold text-slate-800 flex items-center">
-                  <div className={`${styles.iconWrapper} bg-gradient-to-br from-green-50 to-green-100 border-green-200 border w-12 h-12 mr-4`}>
+              <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-4 border-b border-slate-200 gap-4">
+                <h3 id={`${category}-section`} className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center">
+                  <div className={`${styles.iconWrapper} bg-gradient-to-br from-green-50 to-green-100 border-green-200 border w-12 h-12 mr-4 flex-shrink-0`}>
                     {config.icon}
                   </div>
                   {config.label}
                 </h3>
                 <button
                   onClick={() => addDevice(category)}
-                  className={`${styles.button} bg-green-600 text-white hover:bg-green-700 focus:ring-green-500`}
-                  aria-label={`Add new ${category.slice(0, -1)}`}
+                  className={`${styles.button} bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 w-full sm:w-auto`}
+                  aria-label={config.addLabel}
                 >
                   <Plus className="w-5 h-5 mr-2" />
-                  Add {config.label.split(' ').pop().slice(0, -1)}
+                  {config.addLabel}
                 </button>
               </header>
 
@@ -2427,7 +2629,7 @@ const renderSettings = () => {
                     {config.icon}
                   </div>
                   <h4 className="text-xl font-semibold text-slate-700 mb-2">
-                    No {config.label} Added Yet
+                    {t.noAssetsAdded.replace('{assetType}', config.assetType)}
                   </h4>
                   <p className="text-slate-500 mb-6 max-w-md mx-auto leading-relaxed">
                     Start building your farm's digital infrastructure by adding your first {category.slice(0, -1)}.
@@ -2435,10 +2637,10 @@ const renderSettings = () => {
                   <button
                     onClick={() => addDevice(category)}
                     className={`${styles.button} bg-white text-slate-700 border-slate-300 border hover:bg-slate-50 focus:ring-slate-500/50`}
-                    aria-label={`Add new ${category.slice(0, -1)}`}
+                    aria-label={config.addLabel}
                   >
                     <Plus className="w-5 h-5 mr-2" />
-                    Get Started
+                    {t.getStarted}
                   </button>
                 </div>
               ) : (
@@ -2462,11 +2664,11 @@ const renderSettings = () => {
         <footer className="flex justify-center pt-8 border-t border-slate-200">
           <button
             onClick={saveAssets}
-            className={`${styles.button} px-12 py-4 bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 text-base font-bold tracking-wide`}
+            className={`${styles.button} px-8 sm:px-12 py-3 sm:py-4 bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 text-base font-bold tracking-wide`}
             aria-label="Save all farm assets configuration"
           >
             <Save className="w-6 h-6 mr-3" />
-            Save All Assets Configuration
+            {t.saveAssetsConfig}
           </button>
         </footer>
       </div>
@@ -2481,31 +2683,31 @@ const renderFinance = () => {
 
   const renderProfile = () => (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Farmer Profile</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold text-gray-800">{t.farmerProfile}</h2>
         <button
           onClick={isProfileEditing ? handleProfileSave : () => setIsProfileEditing(true)}
           className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-3xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg"
         >
           {isProfileEditing ? <Save className="w-4 h-4 mr-2" /> : <Edit className="w-4 h-4 mr-2" />}
-          {isProfileEditing ? 'Save Changes' : 'Edit Profile'}
+          {isProfileEditing ? t.saveChanges : t.editProfile}
         </button>
       </div>
 
-      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 sm:p-8 border border-white/30 shadow-xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Personal Information</h3>
-            <ProfileInput label="Farmer ID" value={farmerData?.farmerId || ''} disabled />
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">{t.personalInfo}</h3>
+            <ProfileInput label={t.farmerId} value={farmerData?.farmerId || ''} disabled />
             <ProfileInput
-              label="Full Name"
+              label={t.fullName}
               name="farmerName"
               value={farmerData?.farmerName || ''}
               onChange={setFarmerData}
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="Email"
+              label={t.email}
               name="email"
               type="email"
               value={farmerData?.email || ''}
@@ -2513,14 +2715,14 @@ const renderFinance = () => {
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="State"
+              label={t.state}
               name="state"
               value={farmerData?.state || ''}
               onChange={setFarmerData}
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="District"
+              label={t.district}
               name="district"
               value={farmerData?.district || ''}
               onChange={setFarmerData}
@@ -2529,23 +2731,23 @@ const renderFinance = () => {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Farm & Soil Details</h3>
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">{t.farmSoilDetails}</h3>
             <ProfileInput
-              label="Primary Crop"
+              label={t.primaryCrop}
               name="crop"
               value={farmerData?.crop || ''}
               onChange={setFarmerData}
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="Season"
+              label={t.season}
               name="season"
               value={farmerData?.season || ''}
               onChange={setFarmerData}
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="Year"
+              label={t.year}
               name="year"
               type="number"
               value={farmerData?.year || ''}
@@ -2553,7 +2755,7 @@ const renderFinance = () => {
               disabled={!isProfileEditing}
             />
             <ProfileInput
-              label="Area (Hectare)"
+              label={t.areaHectare}
               name="areaHectare"
               type="number"
               value={farmerData?.areaHectare || ''}
@@ -2564,35 +2766,28 @@ const renderFinance = () => {
         </div>
       </div>
 
-      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
-        <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Current Location</h3>
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 sm:p-8 border border-white/30 shadow-xl">
+        <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">{t.currentLocation}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <div className="flex items-center">
               <MapPin className="w-5 h-5 text-blue-600 mr-2" />
-              <span className="font-medium text-gray-700">Location:</span>
+              <span className="font-medium text-gray-700">{t.location}:</span>
               <span className="ml-2 text-gray-600">{getDisplayLocation()}</span>
             </div>
             {locationInfo && (
               <>
                 <div className="flex items-center">
                   <Navigation className="w-5 h-5 text-green-600 mr-2" />
-                  <span className="font-medium text-gray-700">GPS Coordinates:</span>
+                  <span className="font-medium text-gray-700">{t.gpsCoordinates}:</span>
                   <span className="ml-2 text-gray-600 text-sm">
                     {locationInfo.latitude?.toFixed(6) || 'N/A'}, {locationInfo.longitude?.toFixed(6) || 'N/A'}
                   </span>
                 </div>
-                <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                  <span className="font-medium text-gray-700">Full Address:</span>
-                </div>
-                <p className="text-sm text-gray-600 ml-7 bg-gray-50 p-2 rounded-3xl">
-                  {locationInfo.fullAddress || 'Not available'}
-                </p>
               </>
             )}
           </div>
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center md:justify-end">
             <button
               onClick={() => handleRefreshLocation(true)}
               disabled={isRefreshing}
@@ -2601,12 +2796,12 @@ const renderFinance = () => {
               {isRefreshing ? (
                 <>
                   <Loader className="w-4 h-4 mr-2 animate-spin" />
-                  Updating...
+                  {t.updating}...
                 </>
               ) : (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  {t.refresh} Location
+                  {t.refreshLocation}
                 </>
               )}
             </button>
@@ -2614,28 +2809,28 @@ const renderFinance = () => {
         </div>
       </div>
 
-      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-8 border border-white/30 shadow-xl">
-        <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">Manual Location Input</h3>
-        <p className="text-gray-600 mb-4">Enter your location manually if automatic detection fails.</p>
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 sm:p-8 border border-white/30 shadow-xl">
+        <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">{t.manualLocationInput}</h3>
+        <p className="text-gray-600 mb-4">{t.manualLocationHelp}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.city}</label>
             <input
               type="text"
               value={manualLocation.city}
               onChange={(e) => setManualLocation(prev => ({ ...prev, city: e.target.value }))}
               className="w-full px-4 py-3 backdrop-blur-md border rounded-3xl bg-white/50 border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter city"
+              placeholder={t.city}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t.state}</label>
             <input
               type="text"
               value={manualLocation.state}
               onChange={(e) => setManualLocation(prev => ({ ...prev, state: e.target.value }))}
               className="w-full px-4 py-3 backdrop-blur-md border rounded-3xl bg-white/50 border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter state"
+              placeholder={t.state}
             />
           </div>
         </div>
@@ -2645,7 +2840,7 @@ const renderFinance = () => {
           className="mt-6 flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-3xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg disabled:opacity-50"
         >
           <Map className="w-4 h-4 mr-2" />
-          {t.save} Location
+          {t.saveLocation}
         </button>
       </div>
     </div>
@@ -2685,7 +2880,7 @@ const renderFinance = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex" style={{ backgroundColor: '#F0F4FA' }}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col md:flex-row" style={{ backgroundColor: '#F0F4FA' }}>
         {notification && (
           <div className={`fixed top-4 right-4 p-4 rounded-3xl shadow-lg text-white z-50 animate-fade-in ${
             notification.type === 'success' ? 'bg-green-500' :
@@ -2696,36 +2891,61 @@ const renderFinance = () => {
           </div>
         )}
         
-        <aside className={`bg-white/30 backdrop-blur-md border-r border-white/40 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'} rounded-r-3xl`}>
-          <div className="p-4 flex items-center justify-between">
-            <div className={`flex items-center ${!sidebarOpen && 'justify-center w-full'}`}>
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between p-4 bg-white/30 backdrop-blur-md border-b border-white/40 sticky top-0 z-30">
+            <div className="flex items-center">
               <Sprout className="w-8 h-8 text-green-600" />
-              {sidebarOpen && <span className="text-2xl font-bold text-gray-800 ml-2">AgriSense</span>}
+              <span className="text-2xl font-bold text-gray-800 ml-2">AgriSense</span>
             </div>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-full hover:bg-white/50">
+                <Menu className="w-6 h-6 text-gray-700" />
+            </button>
+        </header>
+
+        {/* Sidebar Overlay for Mobile */}
+        {sidebarOpen && (
+            <div 
+                className="fixed inset-0 bg-black/30 z-30 md:hidden" 
+                onClick={() => setSidebarOpen(false)}
+            ></div>
+        )}
+
+        <aside className={`fixed md:relative top-0 left-0 h-full bg-white/30 backdrop-blur-md border-r border-white/40 transition-transform duration-300 ease-in-out z-40 ${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'} md:translate-x-0 md:w-20 lg:w-64 rounded-r-3xl`}>
+          <div className="p-4 flex items-center justify-between">
+            <div className={`flex items-center ${'md:justify-center md:w-full lg:w-auto lg:justify-start'}`}>
+              <Sprout className="w-8 h-8 text-green-600" />
+              <span className="hidden lg:inline text-2xl font-bold text-gray-800 ml-2">AgriSense</span>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-full hover:bg-white/50 md:hidden">
+              <X className="w-6 h-6 text-gray-700" />
+            </button>
           </div>
           <nav className="mt-8">
             {menuItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                    setActiveTab(item.id)
+                    if (window.innerWidth < 768) {
+                        setSidebarOpen(false);
+                    }
+                }}
                 className={`flex items-center w-full px-6 py-4 text-left transition-colors duration-200 ${
                   activeTab === item.id
                     ? 'bg-blue-100/50 text-blue-700 border-r-4 border-blue-600'
                     : 'text-gray-600 hover:bg-gray-100/50'
-                } ${!sidebarOpen && 'justify-center'}`}
+                } md:justify-center lg:justify-start`}
               >
                 {item.icon}
-                {sidebarOpen && <span className="ml-4 font-medium">{item.label}</span>}
+                <span className="ml-4 font-medium hidden lg:inline">{item.label}</span>
               </button>
             ))}
           </nav>
         </aside>
 
-        <main className="flex-1 p-8 overflow-y-auto">
-          <header className="flex items-center justify-between mb-8">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-full hover:bg-white/50">
-              {sidebarOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
-            </button>
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
+          <header className="hidden md:flex items-center justify-between mb-8">
+            <div></div> {/* Placeholder for alignment */}
             <div className="flex items-center space-x-6">
               <div className="flex items-center text-gray-700">
                 <MapPin className="w-5 h-5 mr-2" />
@@ -2752,7 +2972,7 @@ const renderFinance = () => {
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center font-bold text-blue-700">
                     {farmerData?.farmerName?.charAt(0) || 'U'}
                   </div>
-                  <div className="ml-3 text-left">
+                  <div className="ml-3 text-left hidden sm:block">
                     <p className="font-semibold text-gray-800">{farmerData?.farmerName || 'User'}</p>
                     <p className="text-sm text-gray-500">{farmerData?.role || 'Farmer'}</p>
                   </div>
@@ -2774,7 +2994,6 @@ const renderFinance = () => {
           {renderContent()}
         </main>
         
-        {/* FIXED: Pass `modalType` and reset it on close */}
         <PredictionModal 
             isOpen={isModalOpen}
             onClose={() => {
@@ -2785,41 +3004,43 @@ const renderFinance = () => {
             data={modalData}
             isLoading={isModelLoading}
             type={modalType}
+            t={t}
         />
         
         <PlantDiseaseModal 
             isOpen={isDiseaseModalOpen}
             onClose={() => setIsDiseaseModalOpen(false)}
+            t={t}
         />
 
-        <div className="fixed bottom-8 right-8 z-40 flex flex-col items-center gap-4">
+        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-40 flex flex-col items-center gap-4">
            <button
             onClick={() => setIsDiseaseModalOpen(true)}
-            className="bg-green-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-green-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-400/50"
+            className="bg-green-600 text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-white/30 hover:bg-green-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-green-400/50"
             aria-label="Open Plant Disease Detection"
-            title="Plant Disease Detection"
+            title={t.plantDiseaseDetection}
           >
-            <div className="relative w-8 h-8 flex items-center justify-center">
-                <Leaf className="w-6 h-6" />
-                <Camera className="w-4 h-4 absolute -bottom-1 -right-1 bg-green-700 rounded-full p-0.5 border-2 border-green-600" />
+            <div className="relative w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center">
+                <Leaf className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Camera className="w-3 h-3 sm:w-4 sm:h-4 absolute -bottom-1 -right-1 bg-green-700 rounded-full p-0.5 border-2 border-green-600" />
             </div>
           </button>
            <button
             onClick={() => setIsChatOpen(true)}
-            className="bg-blue-600 text-white rounded-3xl p-5 shadow-lg border border-white/30 hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50"
+            className="bg-blue-600 text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-white/30 hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-blue-400/50"
             aria-label="Open Chat Assistant"
           >
-            <Bot className="w-8 h-8" />
+            <Bot className="w-6 h-6 sm:w-8 sm:h-8" />
           </button>
         </div>
 
         {isChatOpen && (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in p-4"
              onClick={() => setIsChatOpen(false)}
           >
             <div
-              className="w-11/12 max-w-3xl h-[90vh] max-h-[700px] bg-gray-900 rounded-3xl shadow-2xl flex flex-col relative animate-slide-up overflow-hidden"
+              className="w-full max-w-3xl h-[90vh] max-h-[700px] bg-gray-900 rounded-3xl shadow-2xl flex flex-col relative animate-slide-up overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <FarmerChat onClose={() => setIsChatOpen(false)} />
@@ -2865,6 +3086,9 @@ const renderFinance = () => {
          .prose li {
           margin-top: 0.25em;
           margin-bottom: 0.25em;
+        }
+        .recharts-responsive-container {
+            min-width: 0;
         }
       `}</style>
     </ErrorBoundary>

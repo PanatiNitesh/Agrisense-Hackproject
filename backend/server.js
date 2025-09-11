@@ -977,7 +977,12 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
 
     res.status(200).json({
       farmerData: farmer,
-      assets: assets, // [FIX] Added assets to the response
+      // FIXED: Send a clean object instead of the full Mongoose document
+      assets: {
+        sensors: assets.sensors || [],
+        cameras: assets.cameras || [],
+        drones: assets.drones || []
+      },
       deviceStats: devices,
       cropRecommendations,
       weatherData,
