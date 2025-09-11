@@ -13,6 +13,7 @@ const axios = require('axios');
 const multer = require('multer');
 const FormData = require('form-data');
 const fs = require('fs');
+const sharp = require('sharp');
 
 dotenv.config();
 
@@ -720,6 +721,11 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
     const farmer = await Farmer.findOne({ farmerId: req.farmer.farmerId }).select("-password");
     if (!farmer) return res.status(404).json({ error: "Farmer not found" });
 
+    // [FIX] Ensure essential soil nutrients have fallback values if not present in the DB
+    farmer.N = farmer.N ?? 100;
+    farmer.P = farmer.P ?? 45;
+    farmer.K = farmer.K ?? 48;
+    
     let { lat, lon } = req.query;
 
     // If no lat/lon provided, try to geocode from available location data
@@ -850,6 +856,20 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
         }
       }
     }
+    
+    // [FIX] Fetch farmer assets and include them in the dashboard data
+    let assets = await FarmerAssets.findOne({ farmerId: farmer.farmerId });
+    if (!assets) {
+      console.log(`No assets found for ${farmer.farmerId}, creating new document.`);
+      assets = new FarmerAssets({
+        farmerId: farmer.farmerId,
+        sensors: [],
+        cameras: [],
+        drones: []
+      });
+      await assets.save();
+    }
+
 
     // Get device statistics (legacy devices)
     const deviceStats = await Device.aggregate([
@@ -957,6 +977,7 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
 
     res.status(200).json({
       farmerData: farmer,
+      assets: assets, // [FIX] Added assets to the response
       deviceStats: devices,
       cropRecommendations,
       weatherData,
@@ -977,30 +998,22 @@ app.get('/farmer/dashboard', authMiddleware(["farmer", "admin"]), async (req, re
 app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) => {
   try {
     const { text } = req.body;
-    if (!text) {
-      return res.status(400).json({ error: "No text provided." });
-    }
-
-    if (!HF_TOKEN) {
-      console.error("HF_TOKEN is not configured in the server's .env file.");
-      return res.status(500).json({ error: "AI service is not configured on the server." });
-    }
+    if (!text) return res.status(400).json({ error: "No text provided." });
+    if (!HF_TOKEN) return res.status(500).json({ error: "AI service is not configured on the server." });
 
     const farmer = await Farmer.findOne({ farmerId: req.farmer.farmerId });
-    if (!farmer) {
-      return res.status(404).json({ error: "Farmer not found." });
-    }
+    if (!farmer) return res.status(404).json({ error: "Farmer not found." });
 
     const context = `
-      You are an expert agricultural assistant. Based on the following farmer's data, answer the user's question concisely.
+      You are an expert agricultural assistant. Based on the following farmer's data, answer concisely.
       - Name: ${farmer.farmerName}
       - Location: ${farmer.currentCity || farmer.district}, ${farmer.state}
       - Current Crop: ${farmer.crop || 'Not specified'}
       - Soil pH: ${farmer.ph || 'N/A'}
       - Soil Moisture: ${farmer.soilMoisture ? farmer.soilMoisture.toFixed(1) + '%' : 'N/A'}
       - Temperature: ${farmer.temperature ? farmer.temperature.toFixed(1) + '°C' : 'N/A'}
-      
-      User's question is: "${text}"
+
+      User's question: "${text}"
     `;
 
     const hfResponse = await axios.post(
@@ -1012,7 +1025,7 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
           { role: "user", content: context }
         ],
         temperature: 0.7,
-        max_tokens: 512,
+        max_tokens: 512
       },
       {
         headers: {
@@ -1024,20 +1037,19 @@ app.post('/farmer/chat', authMiddleware(["farmer", "admin"]), async (req, res) =
       }
     );
 
-    const generatedText = hfResponse.data.choices[0].message.content.trim();
-
-    return res.status(200).json({ response: generatedText || "The AI returned an empty response." });
+    const generatedText = hfResponse.data.choices?.[0]?.message?.content?.trim() || "The AI returned an empty response.";
+    return res.status(200).json({ response: generatedText });
 
   } catch (error) {
     console.error('Chat endpoint error:', error.message);
     if (error.response) {
       console.error(`Status: ${error.response.status}`, error.response.data);
-      return res.status(error.response.status || 503).json({ error: error.response.data.error || 'AI service error' });
-    } else {
-      return res.status(503).json({ error: 'AI service is unavailable. Please try again later.' });
+      return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from AI service' });
     }
+    return res.status(503).json({ error: 'AI service is unavailable.' });
   }
 });
+
 
 // Helper function to fetch an image from Unsplash
 const fetchImageForAdvice = async (category) => {
@@ -1154,44 +1166,46 @@ app.post('/farmer/detect-disease', authMiddleware(["farmer"]), upload.single('im
     if (!PYTHON_API_URL) {
         return res.status(503).json({ error: "AI Model service is not configured on the server." });
     }
+
     if (!req.file) {
         return res.status(400).json({ error: 'No image file uploaded.' });
     }
 
     try {
-        // NEW: Resize the image to 128x128 using sharp
+        // Resize the uploaded image to 128x128
         const resizedBuffer = await sharp(req.file.buffer)
             .resize(128, 128, {
-                fit: 'contain',  // Ensure the image fits within 128x128 without distortion
-                background: { r: 0, g: 0, b: 0, alpha: 1 }  // Black background if needed
+                fit: 'contain',
+                background: { r: 0, g: 0, b: 0, alpha: 1 }
             })
-            .toFormat('jpeg')  // Convert to JPEG for consistency
+            .toFormat('jpeg')
             .toBuffer();
 
+        // Prepare form data
         const formData = new FormData();
         formData.append('file', resizedBuffer, { filename: 'resized_image.jpg', contentType: 'image/jpeg' });
 
+        // Send the image to the AI model API
         const diseaseResponse = await axios.post(
             `${PYTHON_API_URL}/m2/plant-disease`,
             formData,
-            {
-                headers: {
-                    ...formData.getHeaders()
-                }
-            }
+            { headers: { ...formData.getHeaders() } }
         );
 
         res.status(200).json(diseaseResponse.data);
 
     } catch (error) {
         console.error('Plant disease detection error:', error.message);
+
         if (error.response) {
             console.error(`Status: ${error.response.status}`, error.response.data);
             return res.status(error.response.status).json({ error: error.response.data.detail || 'Error from model service' });
         }
+
         res.status(503).json({ error: 'AI Model service is unavailable.' });
     }
 });
+
 
 // ... (The rest of your endpoints and app.listen remain the same)
 // Get all devices for a farmer
