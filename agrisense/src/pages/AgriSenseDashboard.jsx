@@ -286,6 +286,39 @@ const apiService = {
         throw new Error(err.error || 'Failed to detect disease.');
     }
     return response.json();
+  },
+
+  // New endpoints
+  fetchAssets: async (token, farmerId) => {
+    const response = await fetch(`${API_URL}/farmer/assets/${farmerId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch assets');
+    return response.json();
+  },
+
+  saveAssets: async (token, farmerId, assetData) => {
+    const response = await fetch(`${API_URL}/farmer/assets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ farmerId, ...assetData }),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Failed to save assets');
+    }
+    return response.json();
+  },
+
+  fetchAssetsStats: async (token, farmerId) => {
+    const response = await fetch(`${API_URL}/farmer/assets/${farmerId}/stats`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch assets stats');
+    return response.json();
   }
 }
 
@@ -1173,517 +1206,325 @@ const ChatMode = ({ dashboardData, auth, onBack, onClose, lang, setLang }) => {
                 <option key={code} value={code}>{name}</option>
               ))}
             </select>
-            <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700">
-                <X className="w-5 h-5"/>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700">
+              <X className="w-5 h-5"/>
             </button>
         </div>
       </header>
-
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {messages.map(msg => (
-          <div key={msg.id} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.sender === 'bot' && <Bot className="w-7 h-7 p-1.5 bg-green-600 rounded-full self-start flex-shrink-0"/>}
-            <div className={`max-w-md rounded-2xl p-3 text-sm ${msg.sender === 'user' ? 'bg-blue-600 rounded-br-none' : 'bg-gray-700 rounded-bl-none'}`}>
-              {msg.type === 'farm-summary-card' ? <FarmSummaryCard /> : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {messages.map(message => (
+          <div key={message.id} className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+            <div className={`max-w-[85%] rounded-3xl p-4 ${message.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-white'}`}>
+              {message.type === 'farm-summary-card' ? <FarmSummaryCard /> : (
+                <ReactMarkdown className="prose prose-invert max-w-none">
+                  {message.text}
+                </ReactMarkdown>
+              )}
             </div>
-            {msg.sender === 'user' && <User className="w-7 h-7 p-1.5 bg-blue-600 rounded-full self-start flex-shrink-0"/>}
           </div>
         ))}
         {isBotTyping && (
-          <div className="flex items-end gap-2 justify-start">
-            <Bot className="w-7 h-7 p-1.5 bg-green-600 rounded-full self-start flex-shrink-0"/>
-            <div className="max-w-md rounded-2xl p-3 bg-gray-700 rounded-bl-none">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="h-2 w-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="h-2 w-2 bg-white rounded-full animate-bounce"></span>
+          <div className="flex items-start">
+            <div className="bg-gray-800 rounded-3xl p-4">
+              <div className="flex space-x-2">
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
             </div>
           </div>
         )}
         <div ref={chatEndRef} />
       </div>
-
-      <form onSubmit={handleSend} className="p-3 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700 rounded-b-3xl">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your question..."
-            className="flex-1 bg-gray-800 border border-gray-600 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-green-500 text-white text-sm"
-          />
-          <button type="submit" className="p-2.5 bg-green-600 rounded-full hover:bg-green-700 disabled:bg-gray-600" disabled={!input.trim() || isBotTyping}>
-            <Send className="w-5 h-5"/>
-          </button>
-        </div>
+      <form onSubmit={handleSend} className="p-4 bg-gray-800/50 border-t border-gray-700 flex items-center gap-3 rounded-b-3xl">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-1 bg-gray-900/50 text-white placeholder-gray-400 rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border-none"
+        />
+        <button type="submit" disabled={isBotTyping || !input.trim()} className="p-3 bg-blue-600 rounded-full hover:bg-blue-700 disabled:bg-gray-600 transition-colors">
+          <Send className="w-5 h-5 text-white" />
+        </button>
       </form>
     </div>
   );
 };
 
 const FarmerChat = ({ onClose }) => {
-  const [view, setView] = useState('loading'); // loading, greeting, voice, chat, error
+  const [mode, setMode] = useState('greeting');
   const [dashboardData, setDashboardData] = useState(null);
-  const [auth, setAuth] = useState(null);
   const [error, setError] = useState(null);
-  const [lang, setLang] = useState(navigator.language.split('-')[0] || 'en');
+  const [auth, setAuth] = useState({ token: localStorage.getItem('token') });
+  const [lang, setLang] = useState('en');
 
   useEffect(() => {
-    const initialize = async () => {
-      const farmerToken = localStorage.getItem('token');
-      const farmerId = localStorage.getItem('farmerId');
-
-      if (!farmerToken || !farmerId) {
-        setError("Authentication token not found. Please log in through your dashboard.");
-        setView('error');
-        return;
-      }
-
-      setAuth({ token: farmerToken, farmerId });
-
+    const fetchData = async () => {
       try {
-        const data = await apiService.fetchDashboardData(farmerToken);
+        const data = await apiService.fetchDashboardData(auth.token);
         setDashboardData(data);
-        setView('greeting');
       } catch (err) {
-        console.error(err);
-        setError(err.message || 'Could not connect to the server.');
-        setView('error');
+        setError(err.message);
       }
     };
+    fetchData();
+  }, [auth.token]);
 
-    initialize();
-  }, []);
+  if (error) return <ChatErrorScreen error={error} />;
+  if (!dashboardData) return <ChatLoadingScreen />;
 
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
-
-  const renderView = () => {
-    switch (view) {
-      case 'greeting':
-        return <GreetingScreen onVoiceSelect={() => setView('voice')} onChatSelect={() => setView('chat')} lang={lang} />;
-      case 'voice':
-        return <VoiceMode dashboardData={dashboardData} auth={auth} onBack={() => setView('greeting')} onClose={onClose} lang={lang} setLang={setLang} />;
-      case 'chat':
-        return <ChatMode dashboardData={dashboardData} auth={auth} onBack={() => setView('greeting')} onClose={onClose} lang={lang} setLang={setLang} />;
-      case 'error':
-        return <ChatErrorScreen error={error} />;
-      case 'loading':
-      default:
-        return <ChatLoadingScreen />;
-    }
-  };
+  const handleVoiceSelect = () => setMode('voice');
+  const handleChatSelect = () => setMode('chat');
+  const handleBack = () => setMode('greeting');
 
   return (
-    <div className="w-full h-full bg-gray-900 shadow-2xl flex flex-col relative text-white font-sans">
-        {renderView()}
+    <>
+      {mode === 'greeting' && (
+        <GreetingScreen onVoiceSelect={handleVoiceSelect} onChatSelect={handleChatSelect} lang={lang} />
+      )}
+      {mode === 'voice' && (
+        <VoiceMode dashboardData={dashboardData} auth={auth} onBack={handleBack} onClose={onClose} lang={lang} setLang={setLang} />
+      )}
+      {mode === 'chat' && (
+        <ChatMode dashboardData={dashboardData} auth={auth} onBack={handleBack} onClose={onClose} lang={lang} setLang={setLang} />
+      )}
+    </>
+  );
+};
+
+const SoilHealthSection = ({ token, t }) => {
+  const [farmerData, setFarmerData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await apiService.fetchSoilHealthData(token);
+        setFarmerData(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  if (isLoading) return (
+    <div className="flex justify-center items-center h-64">
+      <Loader className="w-8 h-8 animate-spin text-blue-600" />
+    </div>
+  );
+
+  if (error) return (
+    <div className="text-center text-red-600 py-8">
+      <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+      <p>{error}</p>
+    </div>
+  );
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  const soilData = [
+    { name: 'Nitrogen', value: farmerData.nitrogen },
+    { name: 'Phosphorus', value: farmerData.phosphorus },
+    { name: 'Potassium', value: farmerData.potassium },
+    { name: 'pH', value: farmerData.ph }
+  ];
+
+  const radarData = [
+    { subject: 'Nitrogen', A: farmerData.nitrogen, fullMark: 300 },
+    { subject: 'Phosphorus', A: farmerData.phosphorus, fullMark: 300 },
+    { subject: 'Potassium', A: farmerData.potassium, fullMark: 300 },
+    { subject: 'pH', A: farmerData.ph * 30, fullMark: 300 },
+    { subject: 'Rainfall', A: farmerData.rainfall / 10, fullMark: 300 },
+    { subject: 'Temperature', A: farmerData.temperature * 10, fullMark: 300 },
+    { subject: 'Humidity', A: farmerData.humidity * 3, fullMark: 300 }
+  ];
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-800">{t.soil}</h2>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Nutrient Composition</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={soilData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {soilData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        
+        <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Soil Profile Radar</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="subject" />
+              <PolarRadiusAxis />
+              <Radar name="Value" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      
+      <div className="backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Environmental Factors</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={[farmerData]}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="temperature" fill="#82ca9d" name="Temperature (°C)" />
+            <Bar dataKey="humidity" fill="#8884d8" name="Humidity (%)" />
+            <Bar dataKey="rainfall" fill="#ffc658" name="Rainfall (mm)" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-red-50">
-          <AlertTriangle className="w-12 h-12 text-red-500" />
-          <div className="ml-4 text-lg font-semibold text-red-700">
-            <p>Oops! Something went wrong.</p>
-            <p className="text-sm text-red-600">Please try refreshing the page or contact support if the issue persists.</p>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- Prediction Modal Component ---
 const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
   if (!isOpen) return null;
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-48">
-          <Loader className="w-10 h-10 animate-spin text-blue-600" />
-          <p className="mt-4 text-gray-600">Fetching prediction from AI model...</p>
-        </div>
-      );
-    }
-    if (!data) {
-      return <div className="text-center py-12 text-gray-500">No data to display.</div>;
-    }
-
-    if (data.error) {
-        return <div className="text-center py-12 text-red-500 px-6"><strong>Error:</strong> {data.error}</div>;
-    }
-    
-    if (title === 'Yield Prediction' && data.predicted_yield_quintal_per_hectare) {
-        return (
-            <div className="text-center p-6">
-                <p className="text-lg text-gray-600">Predicted Yield</p>
-                <p className="text-5xl font-bold text-green-600 my-2">
-                    {data.predicted_yield_quintal_per_hectare.toFixed(2)}
-                </p>
-                <p className="text-lg text-gray-600">Quintal / Hectare</p>
-            </div>
-        )
-    }
-
-    if (title === 'Crop Recommendation') {
-        const getTitle = (key) => {
-            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        };
-
-        const renderValue = (key, value) => {
-          switch (key.toLowerCase().replace(/[_ ]/g, '')) {
-            case 'newcroprecommendations':
-              return (
-                <div className="bg-gray-50 p-4 rounded-xl space-y-3 mt-1">
-                  {Array.isArray(value) && value.length > 0 ? (
-                    value.map((rec, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center text-sm"
-                      >
-                        <span className="font-medium capitalize text-base">
-                          {rec.crop}
-                        </span>
-                        <span className="text-green-600 font-semibold bg-green-100 px-2 py-1 rounded-md">
-                          {(rec.final_score * 100).toFixed(1)}% Score
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-gray-500 italic">No recommendations</span>
-                  )}
-                </div>
-              );
-
-            case 'advicefortopnewcrop':
-            case 'adviceforexistingcrop':
-              return (
-                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
-                  <ReactMarkdown>{String(value)}</ReactMarkdown>
-                </div>
-              );
-
-            case 'featuresused':
-              return (
-                <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm mt-1">
-                  {Object.entries(value).map(([featureKey, featureValue]) => (
-                    <div
-                      key={featureKey}
-                      className="grid grid-cols-2 gap-2 items-center"
-                    >
-                      <strong className="text-gray-600 capitalize">
-                        {featureKey.replace(/_/g, ' ')}:
-                      </strong>
-                      <span>
-                        {typeof featureValue === 'number'
-                          ? featureValue.toFixed(2)
-                          : String(featureValue)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              );
-
-            default:
-              if (typeof value === 'object' && !Array.isArray(value)) {
-                return (
-                  <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm mt-1">
-                    {Object.entries(value).map(([k, v]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="font-medium text-gray-700 capitalize">
-                          {k.replace(/_/g, ' ')}
-                        </span>
-                        <span className="text-gray-900">
-                          {typeof v === 'number' ? v.toFixed(2) : String(v)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-              return (
-                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
-                  <ReactMarkdown>{String(value)}</ReactMarkdown>
-                </div>
-              );
-          }
-        };
-
-        return (
-            <div className="p-6 space-y-6 text-gray-800">
-                {Object.entries(data).map(([key, value]) => {
-                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                    return (
-                        <div key={key}>
-                            <h4 className="font-semibold text-gray-700 text-lg border-b pb-2 mb-2">{getTitle(key)}</h4>
-                            {renderValue(key, value)}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    }
-
-    // Generic renderer for other JSON objects
-    return (
-      <div className="p-6">
-        <pre className="bg-gray-100 p-4 rounded-xl text-sm text-gray-800 overflow-x-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </div>
-    );
-  };
-
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        <header className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg animate-slide-up p-6" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
             <X className="w-6 h-6 text-gray-600" />
           </button>
         </header>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {renderContent()}
-        </div>
+        
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader className="w-12 h-12 animate-spin text-blue-600 mb-4" />
+            <p className="text-gray-600">Analyzing data...</p>
+          </div>
+        ) : data?.error ? (
+          <div className="bg-red-50 p-6 rounded-2xl text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-red-700 mb-2">Error</h3>
+            <p className="text-red-600">{data.error}</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl text-center">
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Prediction Result</h3>
+              <p className="text-4xl font-bold text-blue-600">{data.prediction}</p>
+              <p className="text-sm text-gray-500 mt-1">Quintal per Hectare</p>
+            </div>
+            
+            {data.explanation && (
+              <div className="bg-gray-50 p-6 rounded-2xl">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Explanation</h3>
+                <p className="text-gray-600">{data.explanation}</p>
+              </div>
+            )}
+            
+            {data.recommendations && data.recommendations.length > 0 && (
+              <div className="bg-gray-50 p-6 rounded-2xl">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Recommendations</h3>
+                <ul className="space-y-3">
+                  {data.recommendations.map((rec, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                      <p className="text-gray-600">{rec}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
 
+  useEffect(() => {
+    const errorHandler = (error) => {
+      console.error('Uncaught error:', error);
+      setHasError(true);
+    };
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, []);
 
-// --- MERGED: IMPROVED SOIL HEALTH SECTION ---
-const SoilStatCard = ({ label, value, unit, optimalRange }) => {
-    const [min, max] = optimalRange;
-    let status, color, bgColor, progressColor;
-  
-    if (value < min) {
-      status = 'Low';
-      color = 'text-yellow-600';
-      bgColor = 'bg-yellow-50';
-      progressColor = 'bg-yellow-500';
-    } else if (value > max) {
-      status = 'High';
-      color = 'text-red-600';
-      bgColor = 'bg-red-50';
-      progressColor = 'bg-red-500';
-    } else {
-      status = 'Optimal';
-      color = 'text-green-600';
-      bgColor = 'bg-green-50';
-      progressColor = 'bg-green-500';
-    }
-  
-    const progressPercentage = Math.min(100, (value / (max + (max-min)/2)) * 100);
-  
+  if (hasError) {
     return (
-      <div className={`backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-lg`}>
-        <div className="flex justify-between items-start">
-            <div>
-                <p className="text-gray-600 font-medium">{label}</p>
-                <p className="text-3xl font-bold text-gray-800 my-1">{value?.toFixed(2) || 'N/A'}</p>
-                <p className="text-gray-500 text-sm">{unit}</p>
-            </div>
-            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${color} ${bgColor}`}>
-                {status}
-            </span>
-        </div>
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className={`${progressColor} h-2.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>0</span>
-            <span>{min}</span>
-            <span>{max}</span>
-            <span>{max + (max - min)}</span>
-          </div>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50">
+        <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold text-red-700 mb-2">Something went wrong</h1>
+        <p className="text-red-600 mb-6">Please refresh the page or try again later.</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-6 py-3 bg-red-600 text-white rounded-3xl hover:bg-red-700"
+        >
+          Refresh
+        </button>
       </div>
     );
+  }
+
+  return children;
 };
-
-const SoilHealthSection = ({ token, t }) => {
-    const [soilData, setSoilData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        const loadSoilData = async () => {
-            if (!token) {
-                setError("Authentication token not found.");
-                setLoading(false);
-                return;
-            }
-            try {
-                setLoading(true);
-                const data = await apiService.fetchSoilHealthData(token);
-                setSoilData(data);
-                setError(null);
-            } catch (err) {
-                setError(err.message || "Could not fetch soil data.");
-                setSoilData(null);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadSoilData();
-    }, [token]);
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <Loader className="w-10 h-10 animate-spin text-blue-600" />
-                <p className="ml-4 text-gray-600">Loading Soil Health Data...</p>
-            </div>
-        );
-    }
-
-    if (error || !soilData) {
-        return (
-            <div className="flex flex-col items-center justify-center h-96 bg-red-50/50 rounded-2xl">
-                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-                <h4 className="text-xl font-semibold text-red-700">Failed to Load Data</h4>
-                <p className="text-red-600 mt-2">{error || "No soil data available."}</p>
-            </div>
-        );
-    }
-
-    const soilMetrics = [
-        { label: 'Nitrogen (N)', key: 'N', unit: 'kg/ha', optimalRange: [100, 150] },
-        { label: 'Phosphorus (P)', key: 'P', unit: 'kg/ha', optimalRange: [60, 90] },
-        { label: 'Potassium (K)', key: 'K', unit: 'kg/ha', optimalRange: [70, 100] },
-        { label: 'Acidity (pH)', key: 'ph', unit: '', optimalRange: [6.5, 7.5] },
-        { label: 'Moisture', key: 'soilMoisture', unit: '%', optimalRange: [60, 80] },
-        { label: 'Rainfall', key: 'rainfall', unit: 'mm', optimalRange: [80, 120] },
-    ];
-    
-    const getRecommendations = () => {
-        const recommendations = [];
-        if (soilData.N < 100) recommendations.push("Nitrogen level is low. Consider using urea or ammonium nitrate fertilizers.");
-        if (soilData.N > 150) recommendations.push("Nitrogen level is high. Avoid nitrogen-rich fertilizers for the next cycle.");
-        if (soilData.P < 60) recommendations.push("Phosphorus is deficient. Apply DAP or superphosphate.");
-        if (soilData.K < 70) recommendations.push("Potassium is low. Muriate of potash (MOP) can improve the levels.");
-        if (soilData.ph < 6.5) recommendations.push("Soil is acidic. Applying agricultural lime can help raise the pH.");
-        if (soilData.ph > 7.5) recommendations.push("Soil is alkaline. Use sulfur or gypsum to lower the pH.");
-        if (recommendations.length === 0) return ["Your soil nutrients appear well-balanced for most crops."];
-        return recommendations;
-    };
-
-    const recommendations = getRecommendations();
-    
-    const soilHealthRadar = [
-        { subject: 'Nitrogen', A: soilData?.N / 150 * 100 || 0, fullMark: 100 },
-        { subject: 'Phosphorus', A: soilData?.P / 100 * 100 || 0, fullMark: 100 },
-        { subject: 'Potassium', A: soilData?.K / 100 * 100 || 0, fullMark: 100 },
-        { subject: 'pH', A: (soilData?.ph - 4) / 5 * 100 || 0, fullMark: 100 },
-        { subject: 'Moisture', A: soilData?.soilMoisture || 0, fullMark: 100 },
-    ];
-    
-    return (
-        <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-gray-800">Soil Nutrient Analysis</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {soilMetrics.map(metric => (
-                    <SoilStatCard
-                        key={metric.key}
-                        label={metric.label}
-                        value={soilData[metric.key]}
-                        unit={metric.unit}
-                        optimalRange={metric.optimalRange}
-                    />
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                <div className="lg:col-span-3 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Overall Soil Health (%)</h3>
-                    <ResponsiveContainer width="100%" height={350}>
-                        <RadarChart data={soilHealthRadar}>
-                            <PolarGrid stroke="#e0e4e7" />
-                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 14 }} />
-                            <PolarRadiusAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-                            <Radar name="Current" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2}/>
-                            <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '1.5rem', border: 'none' }} />
-                        </RadarChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="lg:col-span-2 backdrop-blur-md bg-white/40 rounded-3xl p-6 border border-white/30 shadow-xl">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Recommendations</h3>
-                    <ul className="space-y-4">
-                        {recommendations.map((rec, index) => (
-                            <li key={index} className="flex items-start">
-                                <CheckCircle className="w-5 h-5 text-green-500 mr-3 mt-1 flex-shrink-0" />
-                                <span className="text-gray-700">{rec}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 const AgriSenseDashboard = () => {
-  const [currentLanguage, setCurrentLanguage] = useState(() => {
-    return localStorage.getItem('preferredLanguage') || 'en';
+  const [farmerData, setFarmerData] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    cropRecommendations: [],
+    weatherData: [],
+    yieldComparison: []
   });
-  const [activeTab, setActiveTab] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isProfileEditing, setIsProfileEditing] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [notification, setNotification] = useState(null);
-  const [manualLocation, setManualLocation] = useState({ city: '', state: '' });
-  const [locationInfo, setLocationInfo] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isDiseaseModalOpen, setIsDiseaseModalOpen] = useState(false);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [modalData, setModalData] = useState(null);
-  const [isModelLoading, setIsModelLoading] = useState(false);
-
   const [assets, setAssets] = useState({
     sensors: [],
     cameras: [],
     drones: []
   });
-
-  const [farmerData, setFarmerData] = useState(null);
-  const [dashboardData, setDashboardData] = useState({
-    cropRecommendations: [],
-    weatherData: [],
-    yieldComparison: [],
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [notification, setNotification] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDiseaseModalOpen, setIsDiseaseModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalData, setModalData] = useState(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [locationInfo, setLocationInfo] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [manualLocation, setManualLocation] = useState({ city: '', state: '' });
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem('preferredLanguage') || 'en');
   const navigate = useNavigate();
-
   const t = translations[currentLanguage];
 
   useEffect(() => {
@@ -1777,7 +1618,10 @@ const AgriSenseDashboard = () => {
         weatherData: data.weatherData || [],
         yieldComparison: data.yieldComparison || [],
       });
-      setAssets(data.assets || { sensors: [], cameras: [], drones: [] });
+      
+      // Fetch assets separately
+      const assetsData = await apiService.fetchAssets(token, data.farmerData.farmerId);
+      setAssets(assetsData || { sensors: [], cameras: [], drones: [] });
       
       localStorage.setItem('farmerName', data.farmerData.farmerName);
       
@@ -1898,9 +1742,14 @@ const AgriSenseDashboard = () => {
 
   const saveAssets = async () => {
     showNotification('Saving assets...', 'success');
-    console.log('Saving assets:', assets);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    showNotification('All assets saved successfully!', 'success');
+    const token = localStorage.getItem('token');
+    const farmerId = farmerData.farmerId;
+    try {
+      await apiService.saveAssets(token, farmerId, assets);
+      showNotification('All assets saved successfully!', 'success');
+    } catch (err) {
+      showNotification('Failed to save assets: ' + err.message, 'error');
+    }
   };
 
   const handleProfileSave = async () => {
@@ -2553,7 +2402,7 @@ const renderFinance = () => {
               type="text"
               value={manualLocation.city}
               onChange={(e) => setManualLocation(prev => ({ ...prev, city: e.target.value }))}
-              className="w-full px-4 py-3 backdrop-blur-md border rounded-3xl bg-white/50 border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-white/50 border border-blue-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter city"
             />
           </div>
@@ -2563,7 +2412,7 @@ const renderFinance = () => {
               type="text"
               value={manualLocation.state}
               onChange={(e) => setManualLocation(prev => ({ ...prev, state: e.target.value }))}
-              className="w-full px-4 py-3 backdrop-blur-md border rounded-3xl bg-white/50 border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-white/50 border border-blue-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter state"
             />
           </div>

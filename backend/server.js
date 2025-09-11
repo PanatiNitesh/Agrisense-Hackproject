@@ -1159,8 +1159,17 @@ app.post('/farmer/detect-disease', authMiddleware(["farmer"]), upload.single('im
     }
 
     try {
+        // NEW: Resize the image to 128x128 using sharp
+        const resizedBuffer = await sharp(req.file.buffer)
+            .resize(128, 128, {
+                fit: 'contain',  // Ensure the image fits within 128x128 without distortion
+                background: { r: 0, g: 0, b: 0, alpha: 1 }  // Black background if needed
+            })
+            .toFormat('jpeg')  // Convert to JPEG for consistency
+            .toBuffer();
+
         const formData = new FormData();
-        formData.append('file', req.file.buffer, { filename: req.file.originalname });
+        formData.append('file', resizedBuffer, { filename: 'resized_image.jpg', contentType: 'image/jpeg' });
 
         const diseaseResponse = await axios.post(
             `${PYTHON_API_URL}/m2/plant-disease`,
@@ -1183,7 +1192,6 @@ app.post('/farmer/detect-disease', authMiddleware(["farmer"]), upload.single('im
         res.status(503).json({ error: 'AI Model service is unavailable.' });
     }
 });
-
 
 // ... (The rest of your endpoints and app.listen remain the same)
 // Get all devices for a farmer
