@@ -272,7 +272,7 @@ const apiService = {
       return response.json();
   },
 
-detectPlantDisease: async (token, imageFile) => {
+  detectPlantDisease: async (token, imageFile) => {
     const formData = new FormData();
     formData.append('image', imageFile);
 
@@ -284,6 +284,23 @@ detectPlantDisease: async (token, imageFile) => {
     if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || 'Failed to detect disease.');
+    }
+    return response.json();
+  },
+  
+  // FIXED: Added function to save assets to the backend
+  saveAssets: async (token, farmerId, assets) => {
+    const response = await fetch(`${API_URL}/farmer/assets`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ farmerId, ...assets }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to save assets.');
     }
     return response.json();
   }
@@ -1317,7 +1334,8 @@ class ErrorBoundary extends React.Component {
 }
 
 // --- Prediction Modal Component ---
-const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
+// FIXED: Changed logic to use a `type` prop instead of language-dependent `title`
+const PredictionModal = ({ isOpen, onClose, title, data, isLoading, type }) => {
   if (!isOpen) return null;
 
   if (isLoading) {
@@ -1359,7 +1377,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
     );
   }
 
-  if (title === 'Yield Prediction') {
+  if (type === 'yieldPrediction') {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
@@ -1384,7 +1402,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
     );
   }
 
-  if (title === 'Crop Recommendation') {
+  if (type === 'cropRecommendation') {
     // Sort recommendations by final_score descending
     const sortedRecs = [...(data?.new_crop_recommendations || [])].sort((a, b) => b.final_score - a.final_score);
 
@@ -1487,7 +1505,7 @@ const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
     );
   }
 
-  // Fallback for any other data type (though not expected)
+  // Fallback for any other data type (e.g., if type is not set)
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
@@ -1702,6 +1720,8 @@ const AgriSenseDashboard = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [modalData, setModalData] = useState(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  // FIXED: Added modalType state to control modal content rendering
+  const [modalType, setModalType] = useState('');
 
   const [assets, setAssets] = useState({
     sensors: [],
@@ -1932,11 +1952,22 @@ const AgriSenseDashboard = () => {
     }));
   };
 
+  // FIXED: Implemented API call to save assets to MongoDB
   const saveAssets = async () => {
-    showNotification('Saving assets...', 'success');
-    console.log('Saving assets:', assets);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    showNotification('All assets saved successfully!', 'success');
+    const token = localStorage.getItem('token');
+    if (!token || !farmerData?.farmerId) {
+      showNotification('Could not save assets. Please log in again.', 'error');
+      return;
+    }
+
+    showNotification('Saving assets...', 'warning');
+    try {
+      await apiService.saveAssets(token, farmerData.farmerId, assets);
+      showNotification('All assets saved successfully!', 'success');
+    } catch (err) {
+      console.error("Failed to save assets:", err);
+      showNotification(err.message || 'An error occurred while saving.', 'error');
+    }
   };
 
   const handleProfileSave = async () => {
@@ -1947,10 +1978,12 @@ const AgriSenseDashboard = () => {
     showNotification('Profile updated successfully!', 'success');
   };
 
+  // FIXED: Set modalType for conditional rendering
   const handlePredictYield = async () => {
     const token = localStorage.getItem('token');
     setIsModalOpen(true);
     setModalTitle(t.yieldPrediction);
+    setModalType('yieldPrediction');
     setIsModelLoading(true);
     setModalData(null);
     try {
@@ -1964,10 +1997,12 @@ const AgriSenseDashboard = () => {
     }
   };
 
+  // FIXED: Set modalType for conditional rendering
   const handleRecommendCrop = async () => {
     const token = localStorage.getItem('token');
     setIsModalOpen(true);
     setModalTitle(t.recommendCrop);
+    setModalType('cropRecommendation');
     setIsModelLoading(true);
     setModalData(null);
     try {
@@ -2739,12 +2774,17 @@ const renderFinance = () => {
           {renderContent()}
         </main>
         
+        {/* FIXED: Pass `modalType` and reset it on close */}
         <PredictionModal 
             isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
+            onClose={() => {
+              setIsModalOpen(false);
+              setModalType('');
+            }}
             title={modalTitle}
             data={modalData}
             isLoading={isModelLoading}
+            type={modalType}
         />
         
         <PlantDiseaseModal 
@@ -2832,4 +2872,3 @@ const renderFinance = () => {
 };
 
 export default AgriSenseDashboard;
-
