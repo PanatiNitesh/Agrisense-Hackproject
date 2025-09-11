@@ -1320,159 +1320,190 @@ class ErrorBoundary extends React.Component {
 const PredictionModal = ({ isOpen, onClose, title, data, isLoading }) => {
   if (!isOpen) return null;
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-48">
-          <Loader className="w-10 h-10 animate-spin text-blue-600" />
-          <p className="mt-4 text-gray-600">Fetching prediction from AI model...</p>
-        </div>
-      );
-    }
-    if (!data) {
-      return <div className="text-center py-12 text-gray-500">No data to display.</div>;
-    }
-
-    if (data.error) {
-        return <div className="text-center py-12 text-red-500 px-6"><strong>Error:</strong> {data.error}</div>;
-    }
-    
-    if (title === 'Yield Prediction' && data.predicted_yield_quintal_per_hectare) {
-        return (
-            <div className="text-center p-6">
-                <p className="text-lg text-gray-600">Predicted Yield</p>
-                <p className="text-5xl font-bold text-green-600 my-2">
-                    {data.predicted_yield_quintal_per_hectare.toFixed(2)}
-                </p>
-                <p className="text-lg text-gray-600">Quintal / Hectare</p>
-            </div>
-        )
-    }
-
-    if (title === 'Crop Recommendation') {
-        const getTitle = (key) => {
-            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        };
-
-        const renderValue = (key, value) => {
-          switch (key.toLowerCase().replace(/[_ ]/g, '')) {
-            case 'newcroprecommendations':
-              return (
-                <div className="bg-gray-50 p-4 rounded-xl space-y-3 mt-1">
-                  {Array.isArray(value) && value.length > 0 ? (
-                    value.map((rec, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center text-sm"
-                      >
-                        <span className="font-medium capitalize text-base">
-                          {rec.crop}
-                        </span>
-                        <span className="text-green-600 font-semibold bg-green-100 px-2 py-1 rounded-md">
-                          {(rec.final_score * 100).toFixed(1)}% Score
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-gray-500 italic">No recommendations</span>
-                  )}
-                </div>
-              );
-
-            case 'advicefortopnewcrop':
-            case 'adviceforexistingcrop':
-              return (
-                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
-                  <ReactMarkdown>{String(value)}</ReactMarkdown>
-                </div>
-              );
-
-            case 'featuresused':
-              return (
-                <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm mt-1">
-                  {Object.entries(value).map(([featureKey, featureValue]) => (
-                    <div
-                      key={featureKey}
-                      className="grid grid-cols-2 gap-2 items-center"
-                    >
-                      <strong className="text-gray-600 capitalize">
-                        {featureKey.replace(/_/g, ' ')}:
-                      </strong>
-                      <span>
-                        {typeof featureValue === 'number'
-                          ? featureValue.toFixed(2)
-                          : String(featureValue)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              );
-
-            default:
-              if (typeof value === 'object' && !Array.isArray(value)) {
-                return (
-                  <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-sm mt-1">
-                    {Object.entries(value).map(([k, v]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="font-medium text-gray-700 capitalize">
-                          {k.replace(/_/g, ' ')}
-                        </span>
-                        <span className="text-gray-900">
-                          {typeof v === 'number' ? v.toFixed(2) : String(v)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-              return (
-                <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-xl mt-1">
-                  <ReactMarkdown>{String(value)}</ReactMarkdown>
-                </div>
-              );
-          }
-        };
-
-        return (
-            <div className="p-6 space-y-6 text-gray-800">
-                {Object.entries(data).map(([key, value]) => {
-                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                    return (
-                        <div key={key}>
-                            <h4 className="font-semibold text-gray-700 text-lg border-b pb-2 mb-2">{getTitle(key)}</h4>
-                            {renderValue(key, value)}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    }
-
-    // Generic renderer for other JSON objects
+  if (isLoading) {
     return (
-      <div className="p-6">
-        <pre className="bg-gray-100 p-4 rounded-xl text-sm text-gray-800 overflow-x-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader className="w-12 h-12 animate-spin text-blue-600 mb-4" />
+            <p className="text-gray-600">Analyzing data...</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="mt-6 w-full px-6 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     );
-  };
+  }
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        <header className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
-            <X className="w-6 h-6 text-gray-600" />
+  if (data?.error) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
+          <div className="bg-red-50 p-4 rounded-xl mb-6">
+            <p className="text-red-600">{data.error}</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Close
           </button>
-        </header>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {renderContent()}
         </div>
       </div>
+    );
+  }
+
+  if (title === 'Yield Prediction') {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <TrendingUp className="w-6 h-6 text-green-600 mr-2" /> {title}
+          </h2>
+          <div className="text-center p-6 bg-green-50 rounded-2xl border border-green-200">
+            <p className="text-lg text-green-800">Predicted Yield</p>
+            <p className="text-6xl font-bold text-green-600 my-2">
+              {data?.predicted_yield_quintal_per_hectare?.toFixed(2) || 'N/A'}
+            </p>
+            <p className="text-lg text-green-800">Quintal / Hectare</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-full mt-8 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (title === 'Crop Recommendation') {
+    // Sort recommendations by final_score descending
+    const sortedRecs = [...(data?.new_crop_recommendations || [])].sort((a, b) => b.final_score - a.final_score);
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <Leaf className="w-6 h-6 text-green-600 mr-2" /> {title}
+          </h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Input Features Used</h3>
+              <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Parameter</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(data?.features_used || {}).map(([key, value]) => (
+                      <tr key={key} className="border-t border-gray-200">
+                        <td className="px-4 py-3 text-gray-600 capitalize">{key}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Top Crop Recommendations</h3>
+              <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Rank</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Crop</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Probability</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-700">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedRecs.map((crop, index) => {
+                      const scorePercent = (crop.final_score * 100).toFixed(2);
+                      const probPercent = (crop.probability * 100).toFixed(2);
+                      let cropColor = 'text-green-600 font-bold'; // Default high
+                      if (crop.final_score < 0.05) cropColor = 'text-yellow-600 font-bold'; // Medium
+                      if (crop.final_score < 0.03) cropColor = 'text-red-600 font-bold'; // Low
+                      
+                      return (
+                        <tr key={crop.crop} className="border-t border-gray-200 hover:bg-gray-100 transition-colors">
+                          <td className="px-4 py-3 text-gray-600">{index + 1}</td>
+                          <td className={`px-4 py-3 ${cropColor}`}>{crop.crop.charAt(0).toUpperCase() + crop.crop.slice(1)}</td>
+                          <td className="px-4 py-3 text-gray-600">{probPercent}%</td>
+                          <td className="px-4 py-3 text-gray-600">{scorePercent}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+              <BookOpen className="w-5 h-5 text-blue-600 mr-2" /> Advice for Top Recommended Crop
+            </h3>
+            <div className="bg-blue-50 p-6 rounded-2xl prose prose-sm max-w-none text-gray-700 border border-blue-100 shadow-sm">
+              <ReactMarkdown>{data?.advice_for_top_new_crop || 'No advice available.'}</ReactMarkdown>
+            </div>
+          </div>
+          
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+              <BookOpen className="w-5 h-5 text-green-600 mr-2" /> Advice for Existing Crop
+            </h3>
+            <div className="bg-green-50 p-6 rounded-2xl prose prose-sm max-w-none text-gray-700 border border-green-100 shadow-sm">
+              <ReactMarkdown>{data?.advice_for_existing_crop || 'No advice available.'}</ReactMarkdown>
+            </div>
+          </div>
+          
+          <div className="text-sm text-gray-500 flex justify-between mb-6">
+            <span>Farmer ID: {data?.farmerId || 'N/A'}</span>
+            <span>Recommended at: {data?.recommended_at ? new Date(data.recommended_at).toLocaleString() : 'N/A'}</span>
+          </div>
+          
+          <button 
+            onClick={onClose}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for any other data type (though not expected)
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+             <h2 className="text-2xl font-bold text-gray-800 mb-6">{title}</h2>
+             <div className="p-4 bg-gray-100 rounded-xl text-sm text-gray-800 overflow-x-auto">
+                <pre>{JSON.stringify(data, null, 2)}</pre>
+             </div>
+             <button 
+                onClick={onClose}
+                className="w-full mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                Close
+            </button>
+        </div>
     </div>
-  );
+  )
 };
 
 
@@ -1768,7 +1799,7 @@ const AgriSenseDashboard = () => {
   const fetchData = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      navigate('/login');
+      navigate('/auth');
       return;
     }
 
@@ -1815,7 +1846,7 @@ const AgriSenseDashboard = () => {
     localStorage.removeItem('farmerId');
     localStorage.removeItem('farmerName');
     localStorage.removeItem('preferredLanguage');
-    navigate('/login');
+    navigate('/auth');
   };
 
   const getDisplayLocation = () => {
@@ -2801,3 +2832,4 @@ const renderFinance = () => {
 };
 
 export default AgriSenseDashboard;
+
