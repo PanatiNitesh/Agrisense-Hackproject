@@ -13,10 +13,9 @@ AgriSense is a comprehensive smart farming platform that leverages artificial in
 - [🚀 Installation Guide](#-installation-guide)
 - [📖 Usage](#-usage)
 - [⚙️ Configuration](#️-configuration)
-- [🌐 Deployment](#-deployment)
+- [👥 Contributors](#-contributors)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
-- [📞 Contact](#-contact)
 - [🙏 Acknowledgments](#-acknowledgments)
 
 ---
@@ -87,8 +86,7 @@ Before you begin, ensure you have the following installed:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/agrisense-hackproject.git
-   cd agrisense-hackproject
+   git clone https://github.com/PanatiNitesh/Agrisense-Hackproject.git
    ```
 
 2. **Install backend dependencies**
@@ -101,15 +99,6 @@ Before you begin, ensure you have the following installed:
    ```bash
    cp .env.example .env
    # Edit .env file with your configuration
-   ```
-
-4. **Start MongoDB service**
-   ```bash
-   # For Ubuntu/Debian
-   sudo systemctl start mongod
-   
-   # For macOS with Homebrew
-   brew services start mongodb-community
    ```
 
 ### 🎨 Frontend Setup
@@ -163,7 +152,7 @@ Before you begin, ensure you have the following installed:
 3. **Start the AI Model Service**
    ```bash
    cd LLM-Model
-   python -m uvicorn main:app --reload --port 8000
+   python -m uvicorn app:app --reload --port 8000
    # AI service runs on http://localhost:8000
    ```
 
@@ -243,50 +232,39 @@ MODEL_CACHE_DIR=./models
 
 ---
 
-## 🌐 Deployment
+## 👥 Contributors
 
-### Production Deployment Steps
+We're grateful to the amazing team that made AgriSense possible:
 
-1. **Prepare Environment**
-   ```bash
-   # Build frontend
-   cd agrisense
-   npm run build
-   
-   # Install production dependencies
-   cd ../backend
-   npm install --production
-   ```
+<div align="center">
 
-2. **Configure Production Environment**
-   - Set up production MongoDB instance
-   - Configure environment variables for production
-   - Set up reverse proxy (nginx recommended)
+| # | Contributor | Role | GitHub Profile |
+|---|------------|------|----------------|
+| 1 | **Ravindra** | Full Stack Developer & AI Integration | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ravindraogg) |
+| 2 | **Nitesh Panati** | Project Lead & Backend Architecture | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/PanatiNitesh) |
+| 3 | **Pooja CG** | Frontend Development & UI/UX Design | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Pooja-CG) |
 
-3. **Deploy Backend**
-   ```bash
-   # Using PM2 for process management
-   npm install -g pm2
-   pm2 start ecosystem.config.js
-   ```
+</div>
 
-4. **Deploy Frontend**
-   - Upload build files to web server
-   - Configure nginx/Apache for serving static files
+### Team Contributions
 
-5. **Deploy AI Service**
-   ```bash
-   # Using gunicorn for production
-   pip install gunicorn
-   gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
-   ```
+#### 🔧 **Ravindra** - [@ravindraogg](https://github.com/ravindraogg)
+- AI/ML model integration and optimization
+- Python FastAPI service development
+- Machine learning algorithms for crop prediction
+- Plant disease detection system implementation
 
-### Docker Deployment (Optional)
+#### 🎯 **Nitesh Panati** - [@PanatiNitesh](https://github.com/PanatiNitesh)
+- Project architecture and technical leadership
+- Backend API development with Node.js/Express
+- Database design and MongoDB integration
+- Authentication and security implementation
 
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-```
+#### 🎨 **Pooja CG** - [@Pooja-CG](https://github.com/Pooja-CG)
+- Frontend React.js application development
+- User interface and user experience design
+- Responsive design with Tailwind CSS
+- Component architecture and state management
 
 ---
 
@@ -351,7 +329,6 @@ copies or substantial portions of the Software.
 ```
 
 ---
----
 
 ## 🙏 Acknowledgments
 
@@ -360,6 +337,7 @@ copies or substantial portions of the Software.
 - **OpenAI** for organizing the Open Model Hackathon and providing the platform for innovation
 - **HuggingFace** for providing access to state-of-the-art language models and AI infrastructure
 - **Indian Government's Agmarknet** for agricultural market data
+- **Our amazing development team** for their dedication and innovative contributions
 
 ### Technologies Used
 
@@ -369,7 +347,6 @@ copies or substantial portions of the Software.
 - **External APIs**: WeatherAPI, Agmarknet, Unsplash, Nominatim
 - **DevOps**: Docker, PM2, Nginx
 
-
 ---
 
 <div align="center">
@@ -377,5 +354,13 @@ copies or substantial portions of the Software.
 **⭐ If you found this project helpful, please consider giving it a star!**
 
 **🌾 Happy Farming with AI! 🤖**
+
+---
+
+**Built with ❤️ by the AgriSense Team**
+
+[![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red.svg)](https://github.com/PanatiNitesh/Agrisense-Hackproject)
+[![OpenAI Hackathon](https://img.shields.io/badge/OpenAI-Hackathon-blue.svg)](https://openai.com)
+[![AI Powered](https://img.shields.io/badge/AI-Powered-green.svg)](https://huggingface.co)
 
 </div>
