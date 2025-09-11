@@ -351,16 +351,6 @@ copies or substantial portions of the Software.
 ```
 
 ---
-
-## 📞 Contact
-
-**Project Maintainer**: [Your Name]
-- 📧 Email: your.email@example.com
-- 🐙 GitHub: [@yourusername](https://github.com/yourusername)
-- 💼 LinkedIn: [Your LinkedIn Profile](https://linkedin.com/in/yourprofile)
-
-**Project Repository**: [https://github.com/yourusername/agrisense-hackproject](https://github.com/yourusername/agrisense-hackproject)
-
 ---
 
 ## 🙏 Acknowledgments
@@ -369,10 +359,7 @@ copies or substantial portions of the Software.
 
 - **OpenAI** for organizing the Open Model Hackathon and providing the platform for innovation
 - **HuggingFace** for providing access to state-of-the-art language models and AI infrastructure
-- **MongoDB** for the robust database solution
-- **WeatherAPI.com** for reliable weather data services
 - **Indian Government's Agmarknet** for agricultural market data
-- **Open Source Community** for the amazing tools and libraries that made this project possible
 
 ### Technologies Used
 
@@ -382,9 +369,6 @@ copies or substantial portions of the Software.
 - **External APIs**: WeatherAPI, Agmarknet, Unsplash, Nominatim
 - **DevOps**: Docker, PM2, Nginx
 
-### Inspiration
-
-This project was inspired by the need to democratize access to agricultural technology and provide Indian farmers with modern, AI-powered tools to improve their farming practices and increase their yields.
 
 ---
 
