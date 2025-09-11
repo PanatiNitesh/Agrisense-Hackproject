@@ -35,7 +35,8 @@ const indianStates = [
   "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
-const API_URL = process.env.VITE_BACK_URI;
+const API_URL = import.meta.env.VITE_BACK_URI;
+
 
 const FarmerAuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);

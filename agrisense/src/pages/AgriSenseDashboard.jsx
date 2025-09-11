@@ -15,8 +15,10 @@ import {
   DollarSign, BookOpen, GraduationCap, Languages, Router, Camera, Upload, ScanLine,ArrowDownCircle
 } from 'lucide-react';
 
+
 // --- Configuration ---
-const API_URL = process.env.VITE_BACK_URI;
+const API_URL = import.meta.env.VITE_BACK_URI;
+
 
 // --- Language Data ---
 const supportedLanguages = [
