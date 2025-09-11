@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 // --- Configuration ---
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://agrisense-hackproject.onrender.com';
 
 // --- Language Data ---
 const supportedLanguages = [
@@ -272,7 +272,7 @@ const apiService = {
       return response.json();
   },
 
-  detectPlantDisease: async (token, imageFile) => {
+detectPlantDisease: async (token, imageFile) => {
     const formData = new FormData();
     formData.append('image', imageFile);
 
@@ -289,7 +289,6 @@ const apiService = {
   }
 }
 
-// --- MERGED: Plant Disease Detection Modal Component ---
 const PlantDiseaseModal = ({ isOpen, onClose }) => {
   const [imageSrc, setImageSrc] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -456,51 +455,57 @@ const PlantDiseaseModal = ({ isOpen, onClose }) => {
                     </button>
                 )}
                 {!isCameraOn && (
-                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors">
-                       <Upload size={20}/> Upload Image
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">
+                        <Upload size={20}/> Upload Image
                     </button>
                 )}
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
             </div>
 
-            {imageFile && (
-                <button onClick={handleDetectDisease} disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors disabled:bg-gray-400">
-                    {isLoading ? <Loader className="w-5 h-5 animate-spin"/> : <ScanLine size={20}/>}
-                    {isLoading ? 'Analyzing...' : 'Detect Disease'}
+            {imageSrc && !isCameraOn && (
+                <button
+                    onClick={handleDetectDisease}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader className="w-5 h-5 animate-spin" />
+                            Detecting...
+                        </>
+                    ) : (
+                        <>
+                            <BrainCircuit className="w-5 h-5" />
+                            Detect Disease
+                        </>
+                    )}
                 </button>
             )}
-            
+
             {detectionResult && (
-                <div className="mt-6 bg-gray-50 p-4 rounded-2xl border">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Detection Result</h3>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                           <span className="font-semibold text-gray-600">Predicted Disease:</span>
-                           <span className="font-bold text-lg text-blue-600">{detectionResult.predicted_class}</span>
-                        </div>
-                         <div className="flex justify-between">
-                           <span className="font-semibold text-gray-600">Confidence:</span>
-                           <span className="font-medium text-green-700">{(detectionResult.confidence * 100).toFixed(2)}%</span>
-                        </div>
-                        {detectionResult.description && (
-                            <div>
-                                <h4 className="font-semibold text-gray-600 mt-3 mb-1">Description:</h4>
-                                <p className="text-gray-700">{detectionResult.description}</p>
-                            </div>
-                        )}
-                         {detectionResult.remedies && (
-                            <div>
-                                <h4 className="font-semibold text-gray-600 mt-3 mb-1">Recommended Remedies:</h4>
-                                <ul className="list-disc list-inside text-gray-700 space-y-1">
-                                    {detectionResult.remedies.map((remedy, index) => <li key={index}>{remedy}</li>)}
-                                </ul>
-                            </div>
-                        )}
+                <div className="mt-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Detection Results</h3>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 shadow-inner">
+                        <p className="flex items-center text-gray-700">
+                            <Leaf className="w-5 h-5 mr-2 text-green-600" />
+                            <span className="font-medium">Predicted Disease:</span>
+                            <span className="ml-2">{detectionResult.predicted_class}</span>
+                        </p>
+                        <p className="flex items-center text-gray-700 mt-2">
+                            <AlertTriangle className="w-5 h-5 mr-2 text-yellow-600" />
+                            <span className="font-medium">Confidence:</span>
+                            <span className="ml-2">{detectionResult.confidence}</span>
+                        </p>
+                        <p className="flex items-start text-gray-700 mt-2">
+                            <BookOpen className="w-5 h-5 mr-2 text-blue-600 mt-1" />
+                            <span className="font-medium">Suggested Treatment:</span>
+                            <span className="ml-2">{detectionResult.suggested_treatment}</span>
+                        </p>
                     </div>
                 </div>
             )}
+            <canvas ref={canvasRef} className="hidden" />
         </div>
-        <canvas ref={canvasRef} className="hidden"></canvas>
       </div>
     </div>
   );

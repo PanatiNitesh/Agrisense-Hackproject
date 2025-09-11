@@ -7,7 +7,7 @@ const SoilHealthAnalysis = ({ latitude, longitude }) => {
   const [error, setError] = useState(null);
 
   // Update: API endpoint for real soil data
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://agrisense-hackproject.onrender.com';
 
   const fetchSoilData = async () => {
     if (!latitude || !longitude) {
