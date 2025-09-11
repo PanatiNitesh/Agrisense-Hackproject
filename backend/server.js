@@ -13,6 +13,7 @@ const axios = require('axios');
 const multer = require('multer');
 const FormData = require('form-data');
 const fs = require('fs');
+const sharp = require('sharp');
 
 dotenv.config();
 
